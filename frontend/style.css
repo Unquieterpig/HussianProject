@@ -139,6 +139,59 @@ select option { background: #000; }
 }
 .chk input { accent-color: #fff; }
 
+/* info bubbles: hover/focus (i) -> CSS tooltip. ponytail: pure CSS, no lib;
+   known ceiling — a wide tip can clip at the viewport edge on the far-right column. */
+.info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  margin-left: 5px;
+  border: 1px solid var(--line-bright);
+  border-radius: 50%;
+  color: var(--fg-dim);
+  font-size: 9px;
+  font-style: normal;
+  line-height: 1;
+  cursor: help;
+  position: relative;
+  vertical-align: middle;
+  outline: none;
+}
+.info:hover,
+.info:focus {
+  color: #000;
+  background: var(--fg);
+  border-color: var(--fg);
+}
+.info::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: 160%;
+  left: 0;
+  width: 200px;
+  padding: 6px 8px;
+  background: #000;
+  color: var(--fg);
+  border: 1px solid var(--line-bright);
+  font-size: 10px;
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: normal;
+  z-index: 10000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.08s;
+  pointer-events: none;
+}
+.info:hover::after,
+.info:focus::after {
+  opacity: 1;
+  visibility: visible;
+}
+
 .actions { padding: 0 12px; display: flex; gap: 10px; }
 .btn {
   background: #000;

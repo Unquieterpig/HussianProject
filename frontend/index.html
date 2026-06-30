@@ -27,60 +27,60 @@
       <div class="grid">
 
         <label class="field span2">
-          <span>TARGET REPO</span>
+          <span>TARGET REPO <span class="info" data-tip="Public GitHub repository to pull source from. Accepts owner/repo or a full github.com URL.">i</span></span>
           <input id="repo_url" type="text" spellcheck="false"
                  placeholder="owner/repo   or   https://github.com/owner/repo" />
         </label>
 
         <label class="field">
-          <span>REF (branch/tag, optional)</span>
+          <span>REF (branch/tag, optional) <span class="info" data-tip="Branch, tag, or commit to check out. Leave blank for the repo's default branch.">i</span></span>
           <input id="ref" type="text" spellcheck="false" placeholder="main" />
         </label>
 
         <label class="field">
-          <span>PROVIDER</span>
+          <span>PROVIDER <span class="info" data-tip="Which LLM backend generates the tests. API keys are read from your .env file, never the browser.">i</span></span>
           <select id="provider"></select>
         </label>
 
         <label class="field">
-          <span>MODEL</span>
+          <span>MODEL <span class="info" data-tip="The specific model to use. The list is fetched live from the provider, newest first.">i</span></span>
           <select id="model"></select>
           <input id="model_custom" type="text" spellcheck="false"
                  placeholder="type your model name" style="display:none;" />
         </label>
 
         <label class="field" id="base_url_field" style="display:none;">
-          <span>BASE URL</span>
+          <span>BASE URL <span class="info" data-tip="OpenAI-compatible endpoint for a custom or self-hosted model (your SWT-Bench scaffold, vLLM, Ollama, etc.).">i</span></span>
           <input id="base_url" type="text" spellcheck="false"
                  placeholder="https://your-scaffold.example/v1" />
         </label>
 
         <label class="field">
-          <span>MAX FILES</span>
+          <span>MAX FILES <span class="info" data-tip="Cap on how many source files are sent to the model. The most relevant files are picked within this limit.">i</span></span>
           <input id="max_files" type="number" min="1" max="40" value="10" />
         </label>
 
         <label class="field">
-          <span>MAX KB</span>
+          <span>MAX KB <span class="info" data-tip="Cap on total source size (KB) sent to the model. Limits token usage and API cost.">i</span></span>
           <input id="max_kb" type="number" min="4" max="800" value="120" />
         </label>
 
         <label class="field">
-          <span>FRAMEWORK HINT (optional)</span>
+          <span>FRAMEWORK HINT (optional) <span class="info" data-tip="Force a test framework (pytest, jest, junit...). Blank = auto-detect from the repo's language.">i</span></span>
           <input id="framework_hint" type="text" spellcheck="false"
                  placeholder="auto (pytest / jest / junit ...)" />
         </label>
 
         <label class="field">
-          <span>INCLUDE GLOBS (comma sep, optional)</span>
+          <span>INCLUDE GLOBS (comma sep, optional) <span class="info" data-tip="Force-include files matching these glob patterns, comma separated. Example: src/*.py, lib/**/*.ts">i</span></span>
           <input id="include_globs" type="text" spellcheck="false"
                  placeholder="src/*.py, lib/**/*.ts" />
         </label>
 
         <div class="field toggles span2">
-          <label class="chk"><input id="swtbench_mode" type="checkbox" /> SWT-BENCH MODE (fail-on-bug / pass-on-fix)</label>
-          <label class="chk"><input id="skip_tests" type="checkbox" /> SKIP EXISTING TEST FILES</label>
-          <label class="chk"><input id="write_output" type="checkbox" checked /> WRITE TESTS TO ./output</label>
+          <label class="chk"><input id="swtbench_mode" type="checkbox" /> SWT-BENCH MODE (fail-on-bug / pass-on-fix) <span class="info" data-tip="Generate tests that FAIL on the buggy code and PASS once it is fixed — SWT-Bench's fail-to-pass criterion.">i</span></label>
+          <label class="chk"><input id="skip_tests" type="checkbox" /> SKIP EXISTING TEST FILES <span class="info" data-tip="Ignore the repo's own test files when choosing which source to send to the model.">i</span></label>
+          <label class="chk"><input id="write_output" type="checkbox" checked /> WRITE TESTS TO ./output <span class="info" data-tip="Also save generated tests to ./output on disk, not just display them here.">i</span></label>
         </div>
 
       </div>

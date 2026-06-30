@@ -315,4 +315,11 @@ $("repo_url").addEventListener("keydown", (e) => {
   if (e.key === "Enter") run();
 });
 
+// info bubbles: focusable for keyboard, and a click on (i) must not toggle the
+// checkbox it sits inside.
+document.querySelectorAll(".info").forEach((el) => {
+  el.tabIndex = 0;
+  el.addEventListener("click", (e) => e.preventDefault());
+});
+
 loadProviders();
