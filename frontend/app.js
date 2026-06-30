@@ -37,23 +37,43 @@ function currentPreset() {
   return PRESETS.find((p) => p.id === $("provider").value) || {};
 }
 
-function onProviderChange() {
-  const p = currentPreset();
-  // Free-type input + datalist: pick a preset model or type one (custom scaffold).
-  const dl = $("model_options");
-  dl.innerHTML = "";
-  (p.models || []).forEach((m) => {
+function fillModels(models) {
+  // Custom scaffold can't be enumerated -> free-text input; everyone else gets
+  // a real <select> (a dropdown that actually opens on click). First = newest.
+  const custom = !!currentPreset().needs_base_url;
+  const sel = $("model");
+  sel.style.display = custom ? "none" : "";
+  $("model_custom").style.display = custom ? "" : "none";
+  sel.innerHTML = "";
+  models.forEach((m) => {
     const o = document.createElement("option");
     o.value = m;
-    dl.appendChild(o);
+    o.textContent = m;
+    sel.appendChild(o);
   });
-  $("model").value = (p.models && p.models[0]) || "";
-  $("model").placeholder = p.needs_base_url ? "type your model name" : "model name";
+}
 
+function selectedModel() {
+  return (
+    currentPreset().needs_base_url ? $("model_custom").value : $("model").value
+  ).trim();
+}
+
+async function onProviderChange() {
+  const p = currentPreset();
+  fillModels(p.models || []); // instant fallback from the preset
   $("base_url_field").style.display = p.needs_base_url ? "" : "none";
-  $("key_status").textContent = p.id === "mock"
-    ? "(not needed)"
-    : p.key_present ? "(found in .env)" : "(none in .env)";
+
+  // Pull the live model list (server queries the provider with the .env key),
+  // newest first. Silently keep the preset list if it can't (no key / offline).
+  try {
+    const live = await fetch(
+      "/api/models?provider=" + encodeURIComponent(p.id)
+    ).then((r) => r.json());
+    if (currentPreset().id === p.id && Array.isArray(live) && live.length) {
+      fillModels(live);
+    }
+  } catch {}
 }
 
 /* ------------------------------ log ------------------------------- */
@@ -97,9 +117,8 @@ function buildPayload() {
   return {
     repo_url: $("repo_url").value.trim(),
     provider: $("provider").value,
-    model: $("model").value.trim(),
+    model: selectedModel(),
     base_url: $("base_url").value.trim() || null,
-    api_key: $("api_key").value.trim() || null,
     ref: $("ref").value.trim() || null,
     include_globs: globs,
     skip_tests: $("skip_tests").checked,

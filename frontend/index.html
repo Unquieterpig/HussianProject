@@ -18,7 +18,7 @@
   | | | |___/\__/ / | | | |   \ \_/ / |\ \| |_\ \ |___
   \_/ \____/\____/  \_/ \_|    \___/\_| \_|\____|____/
 </pre>
-      <div class="subtitle">// LLM TEST-CASE GENERATION ENGINE &nbsp;::&nbsp; v0.1.0 &nbsp;::&nbsp; SWT-BENCH READY</div>
+      <div class="subtitle">TEST-CASE GENERATION ENGINE &nbsp;::&nbsp; v0.1.0</div>
     </header>
 
     <!-- ============================ CONTROLS ============================ -->
@@ -44,21 +44,15 @@
 
         <label class="field">
           <span>MODEL</span>
-          <input id="model" type="text" list="model_options" spellcheck="false"
-                 placeholder="model name" />
-          <datalist id="model_options"></datalist>
+          <select id="model"></select>
+          <input id="model_custom" type="text" spellcheck="false"
+                 placeholder="type your model name" style="display:none;" />
         </label>
 
         <label class="field" id="base_url_field" style="display:none;">
-          <span>BASE URL (OpenAI-compatible)</span>
+          <span>BASE URL</span>
           <input id="base_url" type="text" spellcheck="false"
                  placeholder="https://your-scaffold.example/v1" />
-        </label>
-
-        <label class="field" id="api_key_field">
-          <span>API KEY <em id="key_status"></em></span>
-          <input id="api_key" type="password" spellcheck="false"
-                 placeholder="leave blank to use .env" />
         </label>
 
         <label class="field">
@@ -129,13 +123,13 @@
         <span id="result_meta" class="result-meta"></span>
       </div>
       <div id="results" class="results">
-        <div class="empty">no tests yet — configure a repo and hit RUN.</div>
+        <div class="empty">no tests yet.</div>
       </div>
     </section>
 
     <footer class="footer">
-      TESTFORGE // summer research // multi-model test synthesis &nbsp;|&nbsp;
-      provider abstraction: any OpenAI-compatible endpoint
+      TESTFORGE // shahid research &nbsp;|&nbsp;
+      Made by Joshua Partridge
     </footer>
 
   </div>

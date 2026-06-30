@@ -79,7 +79,7 @@ async def run_pipeline(req: GenerateRequest) -> AsyncIterator[Dict]:
             framework_hint=req.framework_hint,
             swtbench_mode=req.swtbench_mode,
         )
-        provider = build_provider(req.provider, base_url=req.base_url, api_key=req.api_key)
+        provider = build_provider(req.provider, base_url=req.base_url)
         if req.provider != "mock" and not getattr(provider, "api_key", ""):
             raise RuntimeError(
                 f"No API key found for provider '{req.provider}'. Add it to .env "
@@ -94,7 +94,6 @@ async def run_pipeline(req: GenerateRequest) -> AsyncIterator[Dict]:
         yield {"type": "stage", "stage": "llm", "progress": _LLM_PROGRESS_START,
                "message": "Generating test cases (streaming)..."}
         full: list[str] = []
-        reasoning_seen = False
         emitted = 0
         async for chunk in provider.stream(
             messages,
@@ -103,7 +102,6 @@ async def run_pipeline(req: GenerateRequest) -> AsyncIterator[Dict]:
             max_tokens=req.max_output_tokens,
         ):
             if chunk.reasoning:
-                reasoning_seen = True
                 yield {"type": "reasoning", "text": chunk.reasoning}
             if chunk.content:
                 full.append(chunk.content)
@@ -142,7 +140,6 @@ async def run_pipeline(req: GenerateRequest) -> AsyncIterator[Dict]:
             "tests": tests_as_dicts(tests),
             "raw": text,
             "stats": stats,
-            "reasoning_seen": reasoning_seen,
             "out_dir": out_dir,
             "repo": label,
         }

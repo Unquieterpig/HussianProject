@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from .config import public_presets
 from .models import GenerateRequest
 from .pipeline.runner import run_pipeline
+from .providers.discovery import list_models
 
 app = FastAPI(title="TESTFORGE", version="0.1.0")
 
@@ -22,6 +23,12 @@ FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 async def providers() -> list[dict]:
     """Provider presets (no secrets) for populating the UI."""
     return public_presets()
+
+
+@app.get("/api/models")
+async def models(provider: str) -> list[str]:
+    """Live model list for a provider (newest first), via its API + .env key."""
+    return await list_models(provider)
 
 
 @app.post("/api/generate")

@@ -12,10 +12,9 @@ class GenerateRequest(BaseModel):
     provider: str = "deepseek"
     model: str = "deepseek-chat"
 
-    # Per-request overrides. For a custom OpenAI-compatible scaffold the caller
-    # supplies base_url (and optionally api_key) and these win over the preset.
+    # Endpoint override for a custom OpenAI-compatible scaffold. API keys are
+    # intentionally NOT accepted from the client — they come from .env only.
     base_url: Optional[str] = None
-    api_key: Optional[str] = None
 
     ref: Optional[str] = None  # branch / tag / commit
     include_globs: List[str] = []

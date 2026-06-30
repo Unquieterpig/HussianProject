@@ -13,7 +13,7 @@ PORT = 8000
 def main() -> None:
     url = f"http://{HOST}:{PORT}"
     print("=" * 60)
-    print("  TESTFORGE  ::  LLM test-case generator")
+    print("  TESTFORGE ")
     print(f"  Serving at {url}")
     print("=" * 60)
     try:

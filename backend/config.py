@@ -27,7 +27,6 @@ PRESETS: dict[str, dict] = {
         "base_url": "https://api.deepseek.com",
         "models": ["deepseek-chat", "deepseek-reasoner"],
         "api_key_env": "DEEPSEEK_API_KEY",
-        "supports_reasoning": True,
         "needs_base_url": False,
     },
     "openai": {
@@ -35,7 +34,13 @@ PRESETS: dict[str, dict] = {
         "base_url": "https://api.openai.com/v1",
         "models": ["gpt-4o", "gpt-4o-mini", "o3-mini"],
         "api_key_env": "OPENAI_API_KEY",
-        "supports_reasoning": False,
+        "needs_base_url": False,
+    },
+    "anthropic": {
+        "label": "Anthropic Claude",
+        "base_url": "https://api.anthropic.com",
+        "models": ["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5"],
+        "api_key_env": "ANTHROPIC_API_KEY",
         "needs_base_url": False,
     },
     "custom": {
@@ -43,7 +48,6 @@ PRESETS: dict[str, dict] = {
         "base_url": "",
         "models": [],
         "api_key_env": "CUSTOM_API_KEY",
-        "supports_reasoning": True,
         "needs_base_url": True,
     },
     "mock": {
@@ -51,7 +55,6 @@ PRESETS: dict[str, dict] = {
         "base_url": "",
         "models": ["mock-tester"],
         "api_key_env": None,
-        "supports_reasoning": False,
         "needs_base_url": False,
     },
 }
@@ -81,7 +84,6 @@ def public_presets() -> list[dict]:
                 "base_url": preset.get("base_url", ""),
                 "models": preset.get("models", []),
                 "needs_base_url": preset.get("needs_base_url", False),
-                "supports_reasoning": preset.get("supports_reasoning", False),
                 "key_present": bool(get_api_key(pid, preset)),
             }
         )

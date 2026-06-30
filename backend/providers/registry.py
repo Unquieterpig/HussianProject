@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Optional
 
 from ..config import PRESETS, get_api_key
+from .anthropic import AnthropicProvider
 from .base import LLMProvider
 from .mock import MockProvider
 from .openai_compatible import OpenAICompatibleProvider
@@ -22,6 +23,12 @@ def build_provider(
     preset = PRESETS.get(provider_id)
     if preset is None and provider_id != "custom":
         raise ValueError(f"Unknown provider '{provider_id}'.")
+
+    if provider_id == "anthropic":  # native Messages API, not OpenAI-compatible
+        return AnthropicProvider(
+            api_key=api_key or get_api_key(provider_id, preset) or "",
+            base_url=base_url or preset["base_url"],
+        )
 
     resolved_base = (base_url or (preset or {}).get("base_url") or "").strip()
     if not resolved_base:
