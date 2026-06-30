@@ -38,19 +38,19 @@
         </label>
 
         <label class="field">
-          <span>PROVIDER <span class="info" data-tip="Which LLM backend generates the tests. API keys are read from your .env file, never the browser.">i</span></span>
+          <span>PROVIDER <span class="info" data-tip="Which LLM backend generates the tests.">i</span></span>
           <select id="provider"></select>
         </label>
 
         <label class="field">
-          <span>MODEL <span class="info" data-tip="The specific model to use. The list is fetched live from the provider, newest first.">i</span></span>
+          <span>MODEL <span class="info" data-tip="The specific model to use.">i</span></span>
           <select id="model"></select>
           <input id="model_custom" type="text" spellcheck="false"
                  placeholder="type your model name" style="display:none;" />
         </label>
 
         <label class="field" id="base_url_field" style="display:none;">
-          <span>BASE URL <span class="info" data-tip="OpenAI-compatible endpoint for a custom or self-hosted model (your SWT-Bench scaffold, vLLM, Ollama, etc.).">i</span></span>
+          <span>BASE URL <span class="info" data-tip="OpenAI-compatible endpoint for a custom or self-hosted model (your own scaffold, vLLM, Ollama, etc.).">i</span></span>
           <input id="base_url" type="text" spellcheck="false"
                  placeholder="https://your-scaffold.example/v1" />
         </label>
@@ -78,7 +78,7 @@
         </label>
 
         <div class="field toggles span2">
-          <label class="chk"><input id="swtbench_mode" type="checkbox" /> SWT-BENCH MODE (fail-on-bug / pass-on-fix) <span class="info" data-tip="Generate tests that FAIL on the buggy code and PASS once it is fixed — SWT-Bench's fail-to-pass criterion.">i</span></label>
+          <label class="chk"><input id="swtbench_mode" type="checkbox" /> SWT-BENCH MODE <span class="info" data-tip="Generate tests that FAIL on the buggy code and PASS once it is fixed — SWT-Bench's fail-to-pass criterion.">i</span></label>
           <label class="chk"><input id="skip_tests" type="checkbox" /> SKIP EXISTING TEST FILES <span class="info" data-tip="Ignore the repo's own test files when choosing which source to send to the model.">i</span></label>
           <label class="chk"><input id="write_output" type="checkbox" checked /> WRITE TESTS TO ./output <span class="info" data-tip="Also save generated tests to ./output on disk, not just display them here.">i</span></label>
         </div>

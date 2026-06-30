@@ -44,14 +44,14 @@ PRESETS: dict[str, dict] = {
         "needs_base_url": False,
     },
     "custom": {
-        "label": "Custom / Your scaffold (OpenAI-compatible)",
+        "label": "Custom",
         "base_url": "",
         "models": [],
         "api_key_env": "CUSTOM_API_KEY",
         "needs_base_url": True,
     },
     "mock": {
-        "label": "Demo / Mock (no API key)",
+        "label": "Demo",
         "base_url": "",
         "models": ["mock-tester"],
         "api_key_env": None,
