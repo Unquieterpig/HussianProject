@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TESTFORGE</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div id="app">
+
+    <header class="banner">
+<pre class="ascii-title">
+ _____ _____ _____ _____ _____ _____ _____ _____ _____
+|_   _|  ___/  ___|_   _|  ___|  _  | ___ \  __ \  ___|
+  | | | |__ \ `--.  | | | |_  | | | | |_/ / |  \/ |__
+  | | |  __| `--. \ | | |  _| | | | |    /| | __|  __|
+  | | | |___/\__/ / | | | |   \ \_/ / |\ \| |_\ \ |___
+  \_/ \____/\____/  \_/ \_|    \___/\_| \_|\____|____/
+</pre>
+      <div class="subtitle">// LLM TEST-CASE GENERATION ENGINE &nbsp;::&nbsp; v0.1.0 &nbsp;::&nbsp; SWT-BENCH READY</div>
+    </header>
+
+    <!-- ============================ CONTROLS ============================ -->
+    <section class="panel controls">
+      <div class="panel-label">[ CONFIG ]</div>
+      <div class="grid">
+
+        <label class="field span2">
+          <span>TARGET REPO</span>
+          <input id="repo_url" type="text" spellcheck="false"
+                 placeholder="owner/repo   or   https://github.com/owner/repo" />
+        </label>
+
+        <label class="field">
+          <span>REF (branch/tag, optional)</span>
+          <input id="ref" type="text" spellcheck="false" placeholder="main" />
+        </label>
+
+        <label class="field">
+          <span>PROVIDER</span>
+          <select id="provider"></select>
+        </label>
+
+        <label class="field">
+          <span>MODEL</span>
+          <input id="model" type="text" list="model_options" spellcheck="false"
+                 placeholder="model name" />
+          <datalist id="model_options"></datalist>
+        </label>
+
+        <label class="field" id="base_url_field" style="display:none;">
+          <span>BASE URL (OpenAI-compatible)</span>
+          <input id="base_url" type="text" spellcheck="false"
+                 placeholder="https://your-scaffold.example/v1" />
+        </label>
+
+        <label class="field" id="api_key_field">
+          <span>API KEY <em id="key_status"></em></span>
+          <input id="api_key" type="password" spellcheck="false"
+                 placeholder="leave blank to use .env" />
+        </label>
+
+        <label class="field">
+          <span>MAX FILES</span>
+          <input id="max_files" type="number" min="1" max="40" value="10" />
+        </label>
+
+        <label class="field">
+          <span>MAX KB</span>
+          <input id="max_kb" type="number" min="4" max="800" value="120" />
+        </label>
+
+        <label class="field">
+          <span>FRAMEWORK HINT (optional)</span>
+          <input id="framework_hint" type="text" spellcheck="false"
+                 placeholder="auto (pytest / jest / junit ...)" />
+        </label>
+
+        <label class="field">
+          <span>INCLUDE GLOBS (comma sep, optional)</span>
+          <input id="include_globs" type="text" spellcheck="false"
+                 placeholder="src/*.py, lib/**/*.ts" />
+        </label>
+
+        <div class="field toggles span2">
+          <label class="chk"><input id="swtbench_mode" type="checkbox" /> SWT-BENCH MODE (fail-on-bug / pass-on-fix)</label>
+          <label class="chk"><input id="skip_tests" type="checkbox" /> SKIP EXISTING TEST FILES</label>
+          <label class="chk"><input id="write_output" type="checkbox" checked /> WRITE TESTS TO ./output</label>
+        </div>
+
+      </div>
+
+      <div class="actions">
+        <button id="run_btn" class="btn primary">&gt;&gt; RUN GENERATION</button>
+        <button id="stop_btn" class="btn" disabled>[] ABORT</button>
+      </div>
+    </section>
+
+    <!-- ============================ PROGRESS =========================== -->
+    <section class="panel progress-panel">
+      <div class="progress-row">
+        <span id="stage_tag" class="stage-tag">[ IDLE ]</span>
+        <span id="progress_bar" class="progress-bar">[----------------------------------------]</span>
+        <span id="progress_pct" class="progress-pct">  0%</span>
+      </div>
+      <div id="stage_msg" class="stage-msg">awaiting input...</div>
+    </section>
+
+    <!-- =========================== MAIN GRID =========================== -->
+    <section class="main-grid">
+      <div class="panel log-panel">
+        <div class="panel-label">[ STATUS LOG ]</div>
+        <div id="log" class="log"></div>
+      </div>
+
+      <div class="panel stream-panel">
+        <div class="panel-label">[ MODEL STREAM ]
+          <span id="token_count" class="token-count">0 tok</span>
+        </div>
+        <div id="reasoning" class="reasoning" style="display:none;"></div>
+        <pre id="stream" class="stream"></pre>
+      </div>
+    </section>
+
+    <!-- ============================ RESULTS ============================ -->
+    <section class="panel results-panel">
+      <div class="panel-label">[ GENERATED TEST FILES ]
+        <span id="result_meta" class="result-meta"></span>
+      </div>
+      <div id="results" class="results">
+        <div class="empty">no tests yet — configure a repo and hit RUN.</div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      TESTFORGE // summer research // multi-model test synthesis &nbsp;|&nbsp;
+      provider abstraction: any OpenAI-compatible endpoint
+    </footer>
+
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>
