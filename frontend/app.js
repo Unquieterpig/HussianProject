@@ -3,6 +3,8 @@
    - loads provider presets
    - POSTs config to /api/generate and reads the NDJSON event stream
    - drives the status log, ASCII progress bar, live model stream, results
+   - QOL: form persisted to localStorage, elapsed timer, scroll pinning,
+     viewport-aware tooltips, collapsible result files
    =================================================================== */
 
 const $ = (id) => document.getElementById(id);
@@ -10,6 +12,56 @@ const BAR_WIDTH = 40;
 
 let PRESETS = [];
 let abortController = null;
+
+/* ------------------- mobile tabs + config collapse ---------------- */
+const isMobile = () => window.matchMedia("(max-width: 900px)").matches;
+let userPickedTab = false; // manual tab choice wins over auto-switching
+
+function setTab(name) {
+  document.querySelector(".io").dataset.tab = name;
+  document.querySelectorAll(".tab-btn").forEach((b) => {
+    const on = b.dataset.tab === name;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-selected", on);
+  });
+}
+
+// follow the run (log -> stream -> files) unless the user picked a tab
+function autoTab(name) {
+  if (isMobile() && !userPickedTab) setTab(name);
+}
+
+function setCfgCollapsed(on) {
+  document.querySelector(".controls").classList.toggle("collapsed", on);
+  $("cfg_toggle").textContent = on ? "[ show ]" : "[ hide ]";
+}
+
+/* -------------------------- persistence --------------------------- */
+const PERSIST = [
+  "repo_url", "ref", "provider", "model", "model_custom", "base_url",
+  "max_files", "max_kb", "framework_hint", "include_globs",
+  "swtbench_mode", "skip_tests", "write_output",
+];
+const savedState = (() => {
+  try { return JSON.parse(localStorage.getItem("testforge")) || {}; }
+  catch { return {}; }
+})();
+
+function saveState() {
+  const s = {};
+  for (const id of PERSIST) {
+    const el = $(id);
+    s[id] = el.type === "checkbox" ? el.checked : el.value;
+  }
+  localStorage.setItem("testforge", JSON.stringify(s));
+}
+
+function restoreField(id) {
+  if (!(id in savedState)) return;
+  const el = $(id);
+  if (el.type === "checkbox") el.checked = !!savedState[id];
+  else el.value = savedState[id];
+}
 
 /* --------------------------- bootstrap ---------------------------- */
 async function loadProviders() {
@@ -28,8 +80,12 @@ async function loadProviders() {
     opt.textContent = p.label + (p.key_present ? "  [key ok]" : "");
     sel.appendChild(opt);
   }
-  // default to deepseek if present
-  if (PRESETS.some((p) => p.id === "deepseek")) sel.value = "deepseek";
+  // last-used provider wins; otherwise default to deepseek if present
+  if (savedState.provider && PRESETS.some((p) => p.id === savedState.provider)) {
+    sel.value = savedState.provider;
+  } else if (PRESETS.some((p) => p.id === "deepseek")) {
+    sel.value = "deepseek";
+  }
   onProviderChange();
 }
 
@@ -51,6 +107,10 @@ function fillModels(models) {
     o.textContent = m;
     sel.appendChild(o);
   });
+  // restore last-used model if it's still offered
+  if (savedState.model && models.includes(savedState.model)) {
+    sel.value = savedState.model;
+  }
 }
 
 function selectedModel() {
@@ -77,8 +137,13 @@ async function onProviderChange() {
 }
 
 /* ------------------------------ log ------------------------------- */
+function nearBottom(el) {
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+}
+
 function log(level, tag, msg) {
   const box = $("log");
+  const stick = nearBottom(box);
   const row = document.createElement("div");
   row.className = "row " + level;
   const ts = new Date().toLocaleTimeString("en-GB");
@@ -87,7 +152,7 @@ function log(level, tag, msg) {
     `<span class="tag">[${tag}]</span> ` +
     `<span class="${level}">${escapeHtml(msg)}</span>`;
   box.appendChild(row);
-  box.scrollTop = box.scrollHeight;
+  if (stick) box.scrollTop = box.scrollHeight;
 }
 
 function escapeHtml(s) {
@@ -106,6 +171,23 @@ function setProgress(frac, stage, message) {
   $("progress_pct").textContent = String(Math.round(frac * 100)).padStart(3, " ") + "%";
   if (stage) $("stage_tag").textContent = "[ " + stage.toUpperCase() + " ]";
   if (message !== undefined) $("stage_msg").textContent = message;
+}
+
+/* elapsed timer, shown while a run is live */
+let timerId = null;
+function startTimer() {
+  const t0 = Date.now();
+  const tick = () => {
+    const s = Math.floor((Date.now() - t0) / 1000);
+    $("elapsed").textContent =
+      Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0") + " elapsed";
+  };
+  tick();
+  timerId = setInterval(tick, 1000);
+}
+function stopTimer() {
+  clearInterval(timerId);
+  timerId = null;
 }
 
 /* --------------------------- streaming ---------------------------- */
@@ -133,9 +215,21 @@ function buildPayload() {
 async function run() {
   const payload = buildPayload();
   if (!payload.repo_url) {
+    setCfgCollapsed(false); // make sure the offending field is visible
     log("warn", "INPUT", "Enter a GitHub repository first.");
+    $("repo_url").classList.add("invalid");
+    $("repo_url").focus();
     return;
   }
+  saveState();
+
+  // on small screens: tuck the form away (RUN/ABORT stay) and watch the log
+  userPickedTab = false;
+  if (isMobile()) {
+    setCfgCollapsed(true);
+    setTab("log");
+  }
+  $("files_tab").textContent = "FILES";
 
   // reset UI
   $("log").innerHTML = "";
@@ -149,6 +243,7 @@ async function run() {
   document.querySelector(".progress-panel").classList.add("active");
 
   setRunning(true);
+  startTimer();
   abortController = new AbortController();
 
   let tokenCount = 0;
@@ -194,19 +289,26 @@ async function run() {
           case "log":
             log(ev.level || "info", (ev.stage || "log").toUpperCase(), ev.message);
             break;
-          case "reasoning":
-            $("reasoning").style.display = "";
-            $("reasoning").textContent += ev.text;
-            $("reasoning").scrollTop = $("reasoning").scrollHeight;
+          case "reasoning": {
+            const r = $("reasoning");
+            const stick = nearBottom(r);
+            r.style.display = "";
+            r.textContent += ev.text;
+            if (stick) r.scrollTop = r.scrollHeight;
             break;
-          case "token":
+          }
+          case "token": {
+            const st = $("stream");
+            const stick = nearBottom(st);
             streamText += ev.text;
             tokenCount += 1;
-            $("stream").textContent = streamText;
-            $("stream").scrollTop = $("stream").scrollHeight;
+            if (tokenCount === 1) autoTab("stream");
+            st.textContent = streamText;
+            if (stick) st.scrollTop = st.scrollHeight;
             if (tokenCount % 8 === 0)
               $("token_count").textContent = tokenCount + " tok";
             break;
+          }
           case "result":
             $("token_count").textContent = tokenCount + " tok";
             renderResults(ev);
@@ -215,6 +317,7 @@ async function run() {
             log("err", "ERROR", ev.message);
             $("results").innerHTML =
               '<div class="empty">generation failed — see status log.</div>';
+            autoTab("log");
             break;
           case "done":
             break;
@@ -229,6 +332,7 @@ async function run() {
     }
   } finally {
     setRunning(false);
+    stopTimer();
     document.querySelector(".progress-panel").classList.remove("active");
   }
 }
@@ -249,6 +353,8 @@ function renderResults(ev) {
   meta.push(`${tests.length} file(s)`);
   if (ev.out_dir) meta.push(`saved: ${ev.out_dir}`);
   $("result_meta").textContent = meta.join("  ::  ");
+  $("files_tab").textContent = tests.length ? `FILES (${tests.length})` : "FILES";
+  autoTab("files");
 
   if (!tests.length) {
     box.innerHTML =
@@ -257,14 +363,19 @@ function renderResults(ev) {
   }
 
   tests.forEach((t, i) => {
-    const wrap = document.createElement("div");
+    const wrap = document.createElement("details");
     wrap.className = "test-file";
+    wrap.open = i === 0; // first file expanded, rest collapsed
 
-    const head = document.createElement("div");
-    head.className = "tf-head";
-    head.innerHTML =
-      `<div><span class="tf-name">${escapeHtml(t.filename)}</span>` +
-      `<span class="tf-lang">${escapeHtml(t.language || "")}</span></div>`;
+    const head = document.createElement("summary");
+    const lines = t.content.split("\n").length;
+
+    const title = document.createElement("div");
+    title.className = "tf-title";
+    title.innerHTML =
+      `<span class="tf-name">${escapeHtml(t.filename)}</span>` +
+      `<span class="tf-lang">${escapeHtml(t.language || "")}</span>` +
+      `<span class="tf-lines">${lines} lines</span>`;
 
     const actions = document.createElement("div");
     actions.className = "tf-actions";
@@ -278,6 +389,8 @@ function renderResults(ev) {
     );
     actions.appendChild(copyBtn);
     actions.appendChild(dlBtn);
+
+    head.appendChild(title);
     head.appendChild(actions);
 
     const pre = document.createElement("pre");
@@ -291,9 +404,14 @@ function renderResults(ev) {
 
 function mkBtn(label, onClick) {
   const b = document.createElement("button");
+  b.type = "button";
   b.className = "tf-btn";
   b.textContent = label;
-  b.addEventListener("click", onClick);
+  b.addEventListener("click", (e) => {
+    e.preventDefault(); // don't toggle the <details> the button sits in
+    e.stopPropagation();
+    onClick();
+  });
   return b;
 }
 
@@ -311,15 +429,55 @@ function downloadFile(name, content) {
 $("provider").addEventListener("change", onProviderChange);
 $("run_btn").addEventListener("click", run);
 $("stop_btn").addEventListener("click", () => abortController && abortController.abort());
-$("repo_url").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") run();
+["repo_url", "ref"].forEach((id) =>
+  $(id).addEventListener("keydown", (e) => {
+    if (e.key === "Enter") run();
+  })
+);
+$("repo_url").addEventListener("input", () =>
+  $("repo_url").classList.remove("invalid")
+);
+
+$("reset_btn").addEventListener("click", () => {
+  localStorage.removeItem("testforge");
+  location.reload();
 });
 
-// info bubbles: focusable for keyboard, and a click on (i) must not toggle the
-// checkbox it sits inside.
-document.querySelectorAll(".info").forEach((el) => {
-  el.tabIndex = 0;
-  el.addEventListener("click", (e) => e.preventDefault());
+$("cfg_toggle").addEventListener("click", () =>
+  setCfgCollapsed(!document.querySelector(".controls").classList.contains("collapsed"))
+);
+
+document.querySelector(".tabbar").addEventListener("click", (e) => {
+  const b = e.target.closest(".tab-btn");
+  if (!b) return;
+  userPickedTab = true;
+  setTab(b.dataset.tab);
 });
+
+// persist every field on change
+document.querySelectorAll("input, select").forEach((el) =>
+  el.addEventListener("change", saveState)
+);
+
+// info bubbles: a click on (i) must not toggle the checkbox/label it sits in,
+// and the tooltip is shifted so it never clips at the viewport edge.
+function positionTip(e) {
+  const el = e.currentTarget;
+  const r = el.getBoundingClientRect();
+  const w = Math.min(240, window.innerWidth * 0.78);
+  let left = r.left + r.width / 2 - w / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+  el.style.setProperty("--tip-shift", left - r.left + "px");
+}
+document.querySelectorAll(".tip").forEach((el) => {
+  el.addEventListener("click", (e) => e.preventDefault());
+  el.addEventListener("pointerenter", positionTip);
+  el.addEventListener("focus", positionTip);
+});
+
+// restore persisted plain fields (provider/model restore inside loadProviders)
+["repo_url", "ref", "model_custom", "base_url", "max_files", "max_kb",
+ "framework_hint", "include_globs", "swtbench_mode", "skip_tests",
+ "write_output"].forEach(restoreField);
 
 loadProviders();

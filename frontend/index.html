@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#000000" />
   <title>TESTFORGE</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
@@ -10,7 +11,7 @@
   <div id="app">
 
     <header class="banner">
-<pre class="ascii-title">
+<pre class="ascii-title" aria-label="TESTFORGE">
  _____ _____ _____ _____ _____ _____ _____ _____ _____
 |_   _|  ___/  ___|_   _|  ___|  _  | ___ \  __ \  ___|
   | | | |__ \ `--.  | | | |_  | | | | |_/ / |  \/ |__
@@ -18,76 +19,92 @@
   | | | |___/\__/ / | | | |   \ \_/ / |\ \| |_\ \ |___
   \_/ \____/\____/  \_/ \_|    \___/\_| \_|\____|____/
 </pre>
-      <div class="subtitle">TEST-CASE GENERATION ENGINE &nbsp;::&nbsp; v0.1.0</div>
+      <div class="wordmark">&gt;&gt; TESTFORGE :: v0.1.0</div>
+      <div class="subtitle">TEST-CASE GENERATION ENGINE &nbsp;::&nbsp; v0.1.0<span class="blink">_</span></div>
     </header>
 
-    <!-- ============================ CONTROLS ============================ -->
+    <!-- ============================ CONFIG ============================= -->
     <section class="panel controls">
-      <div class="panel-label">[ CONFIG ]</div>
+      <div class="panel-label">
+        <span>[ CONFIG ]</span>
+        <span class="pl-actions">
+          <button id="cfg_toggle" class="link-btn" type="button"
+                  title="Show/hide the config fields">[ hide ]</button>
+          <button id="reset_btn" class="link-btn" type="button"
+                  title="Reset all fields to defaults">[ reset ]</button>
+        </span>
+      </div>
       <div class="grid">
 
-        <label class="field span2">
-          <span>TARGET REPO <span class="info" data-tip="Public GitHub repository to pull source from. Accepts owner/repo or a full github.com URL.">i</span></span>
-          <input id="repo_url" type="text" spellcheck="false"
+        <label class="field span4">
+          <span>TARGET REPO <span class="tip" tabindex="0" data-tip="Public GitHub repository to pull source from. Accepts owner/repo or a full github.com URL.">i</span></span>
+          <input id="repo_url" type="text" spellcheck="false" autocomplete="off"
                  placeholder="owner/repo   or   https://github.com/owner/repo" />
         </label>
 
-        <label class="field">
-          <span>REF (branch/tag, optional) <span class="info" data-tip="Branch, tag, or commit to check out. Leave blank for the repo's default branch.">i</span></span>
-          <input id="ref" type="text" spellcheck="false" placeholder="main" />
+        <label class="field span2">
+          <span>REF <em>(optional)</em> <span class="tip" tabindex="0" data-tip="Branch, tag, or commit to check out. Leave blank for the repo's default branch.">i</span></span>
+          <input id="ref" type="text" spellcheck="false" autocomplete="off" placeholder="main" />
         </label>
 
-        <label class="field">
-          <span>PROVIDER <span class="info" data-tip="Which LLM backend generates the tests.">i</span></span>
+        <label class="field span3">
+          <span>PROVIDER <span class="tip" tabindex="0" data-tip="Which LLM backend generates the tests.">i</span></span>
           <select id="provider"></select>
         </label>
 
-        <label class="field">
-          <span>MODEL <span class="info" data-tip="The specific model to use.">i</span></span>
+        <label class="field span3">
+          <span>MODEL <span class="tip" tabindex="0" data-tip="The specific model to use.">i</span></span>
           <select id="model"></select>
-          <input id="model_custom" type="text" spellcheck="false"
+          <input id="model_custom" type="text" spellcheck="false" autocomplete="off"
                  placeholder="type your model name" style="display:none;" />
         </label>
 
-        <label class="field" id="base_url_field" style="display:none;">
-          <span>BASE URL <span class="info" data-tip="OpenAI-compatible endpoint for a custom or self-hosted model (your own scaffold, vLLM, Ollama, etc.).">i</span></span>
-          <input id="base_url" type="text" spellcheck="false"
+        <label class="field span6" id="base_url_field" style="display:none;">
+          <span>BASE URL <span class="tip" tabindex="0" data-tip="OpenAI-compatible endpoint for a custom or self-hosted model (your own scaffold, vLLM, Ollama, etc.).">i</span></span>
+          <input id="base_url" type="text" spellcheck="false" autocomplete="off"
                  placeholder="https://your-scaffold.example/v1" />
         </label>
 
-        <label class="field">
-          <span>MAX FILES <span class="info" data-tip="Cap on how many source files are sent to the model. The most relevant files are picked within this limit.">i</span></span>
-          <input id="max_files" type="number" min="1" max="40" value="10" />
-        </label>
+        <details class="advanced span6" id="advanced">
+          <summary>ADVANCED OPTIONS</summary>
+          <div class="adv-grid">
 
-        <label class="field">
-          <span>MAX KB <span class="info" data-tip="Cap on total source size (KB) sent to the model. Limits token usage and API cost.">i</span></span>
-          <input id="max_kb" type="number" min="4" max="800" value="120" />
-        </label>
+            <label class="field">
+              <span>MAX FILES <span class="tip" tabindex="0" data-tip="Cap on how many source files are sent to the model. The most relevant files are picked within this limit.">i</span></span>
+              <input id="max_files" type="number" inputmode="numeric" min="1" max="40" value="10" />
+            </label>
 
-        <label class="field">
-          <span>FRAMEWORK HINT (optional) <span class="info" data-tip="Force a test framework (pytest, jest, junit...). Blank = auto-detect from the repo's language.">i</span></span>
-          <input id="framework_hint" type="text" spellcheck="false"
-                 placeholder="auto (pytest / jest / junit ...)" />
-        </label>
+            <label class="field">
+              <span>MAX KB <span class="tip" tabindex="0" data-tip="Cap on total source size (KB) sent to the model. Limits token usage and API cost.">i</span></span>
+              <input id="max_kb" type="number" inputmode="numeric" min="4" max="800" value="120" />
+            </label>
 
-        <label class="field">
-          <span>INCLUDE GLOBS (comma sep, optional) <span class="info" data-tip="Force-include files matching these glob patterns, comma separated. Example: src/*.py, lib/**/*.ts">i</span></span>
-          <input id="include_globs" type="text" spellcheck="false"
-                 placeholder="src/*.py, lib/**/*.ts" />
-        </label>
+            <label class="field">
+              <span>FRAMEWORK HINT <span class="tip" tabindex="0" data-tip="Force a test framework (pytest, jest, junit...). Blank = auto-detect from the repo's language.">i</span></span>
+              <input id="framework_hint" type="text" spellcheck="false" autocomplete="off"
+                     placeholder="auto (pytest / jest / junit ...)" />
+            </label>
 
-        <div class="field toggles span2">
-          <label class="chk"><input id="swtbench_mode" type="checkbox" /> SWT-BENCH MODE <span class="info" data-tip="Generate tests that FAIL on the buggy code and PASS once it is fixed — SWT-Bench's fail-to-pass criterion.">i</span></label>
-          <label class="chk"><input id="skip_tests" type="checkbox" /> SKIP EXISTING TEST FILES <span class="info" data-tip="Ignore the repo's own test files when choosing which source to send to the model.">i</span></label>
-          <label class="chk"><input id="write_output" type="checkbox" checked /> WRITE TESTS TO ./output <span class="info" data-tip="Also save generated tests to ./output on disk, not just display them here.">i</span></label>
+            <label class="field">
+              <span>INCLUDE GLOBS <span class="tip" tabindex="0" data-tip="Force-include files matching these glob patterns, comma separated. Example: src/*.py, lib/**/*.ts">i</span></span>
+              <input id="include_globs" type="text" spellcheck="false" autocomplete="off"
+                     placeholder="src/*.py, lib/**/*.ts" />
+            </label>
+
+          </div>
+        </details>
+
+        <div class="field toggles span6">
+          <label class="chk"><input id="swtbench_mode" type="checkbox" /> SWT-BENCH MODE <span class="tip" tabindex="0" data-tip="Generate tests that FAIL on the buggy code and PASS once it is fixed — SWT-Bench's fail-to-pass criterion.">i</span></label>
+          <label class="chk"><input id="skip_tests" type="checkbox" /> SKIP EXISTING TESTS <span class="tip" tabindex="0" data-tip="Ignore the repo's own test files when choosing which source to send to the model.">i</span></label>
+          <label class="chk"><input id="write_output" type="checkbox" checked /> WRITE TO ./output <span class="tip" tabindex="0" data-tip="Also save generated tests to ./output on disk, not just display them here.">i</span></label>
         </div>
 
       </div>
 
       <div class="actions">
-        <button id="run_btn" class="btn primary">&gt;&gt; RUN GENERATION</button>
-        <button id="stop_btn" class="btn" disabled>[] ABORT</button>
+        <button id="run_btn" class="btn primary" type="button">&gt;&gt; RUN GENERATION</button>
+        <button id="stop_btn" class="btn" type="button" disabled>[ ABORT ]</button>
       </div>
     </section>
 
@@ -95,35 +112,45 @@
     <section class="panel progress-panel">
       <div class="progress-row">
         <span id="stage_tag" class="stage-tag">[ IDLE ]</span>
-        <span id="progress_bar" class="progress-bar">[----------------------------------------]</span>
+        <span id="progress_bar" class="progress-bar" aria-hidden="true">[----------------------------------------]</span>
         <span id="progress_pct" class="progress-pct">  0%</span>
       </div>
-      <div id="stage_msg" class="stage-msg">awaiting input...</div>
+      <div class="stage-foot">
+        <div id="stage_msg" class="stage-msg">awaiting input...</div>
+        <div id="elapsed" class="elapsed"></div>
+      </div>
     </section>
 
-    <!-- =========================== MAIN GRID =========================== -->
-    <section class="main-grid">
+    <!-- ==================== OUTPUT (tabs on mobile) ==================== -->
+    <section class="io" data-tab="log">
+      <nav class="tabbar" role="tablist" aria-label="Output panels">
+        <button class="tab-btn active" data-tab="log" type="button" role="tab" aria-selected="true">LOG</button>
+        <button class="tab-btn" data-tab="stream" type="button" role="tab" aria-selected="false">STREAM</button>
+        <button class="tab-btn" data-tab="files" type="button" role="tab" aria-selected="false" id="files_tab">FILES</button>
+      </nav>
+
       <div class="panel log-panel">
-        <div class="panel-label">[ STATUS LOG ]</div>
-        <div id="log" class="log"></div>
+        <div class="panel-label"><span>[ STATUS LOG ]</span></div>
+        <div id="log" class="log" aria-live="polite"></div>
       </div>
 
       <div class="panel stream-panel">
-        <div class="panel-label">[ MODEL STREAM ]
+        <div class="panel-label">
+          <span>[ MODEL STREAM ]</span>
           <span id="token_count" class="token-count">0 tok</span>
         </div>
         <div id="reasoning" class="reasoning" style="display:none;"></div>
         <pre id="stream" class="stream"></pre>
       </div>
-    </section>
 
-    <!-- ============================ RESULTS ============================ -->
-    <section class="panel results-panel">
-      <div class="panel-label">[ GENERATED TEST FILES ]
-        <span id="result_meta" class="result-meta"></span>
-      </div>
-      <div id="results" class="results">
-        <div class="empty">no tests yet.</div>
+      <div class="panel results-panel">
+        <div class="panel-label">
+          <span>[ GENERATED TEST FILES ]</span>
+          <span id="result_meta" class="result-meta"></span>
+        </div>
+        <div id="results" class="results">
+          <div class="empty">no tests yet.</div>
+        </div>
       </div>
     </section>
 
