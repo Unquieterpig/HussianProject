@@ -51,6 +51,13 @@ and interface run end-to-end with a canned model, no network or spend.
 - **INCLUDE GLOBS** — force specific files in, e.g. `src/*.py, lib/**/*.ts`.
 - **SWT-BENCH MODE** — instructs the model to write tests that fail on buggy
   code and pass once fixed (the SWT-Bench fail-to-pass criterion).
+- **VERIFY (RUN PYTEST)** — actually runs the generated tests against the
+  downloaded repo in a temp dir and logs the pytest exit code. Python repos
+  only, and it runs the generated files only, never the repo's own suite.
+  ⚠ This executes model-written code on your machine with no sandbox — keep the
+  server local. No dependencies are installed, so a repo with third-party
+  imports will fail at collection (exit 2); that is still the signal that
+  separates a real test from a hallucinated one.
 
 ## Plugging in our own model (the research path)
 
@@ -88,6 +95,7 @@ backend/
     selector.py        budgeted source-file selection
     prompt.py          system + user message construction
     parser.py          model text -> test files (+ write to ./output)
+    verify.py          runs generated tests via pytest in a temp dir
     runner.py          orchestrates stages, emits UI events
 frontend/
   index.html  style.css  app.js     ASCII monochrome terminal UI
@@ -98,5 +106,7 @@ run.py                   launcher (uvicorn)
 - Sends raw source in the prompt; mind context limits and API spend. The token
   estimate in the status log is rough (chars/4).
 - File selection is heuristic, not semantic retrieval — fine for a first pass.
-- Generated tests are not executed/validated here. Running them against the repo
-  (the SWT-Bench fail-to-pass check) is the natural next milestone.
+- VERIFY runs the tests against the repo's *current* code only. The real
+  fail-to-pass check needs two runs (buggy vs patched), which needs SWT-Bench
+  instance data with a gold patch rather than a bare GitHub URL — that is the
+  next milestone.

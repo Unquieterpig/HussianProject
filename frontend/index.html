@@ -98,6 +98,7 @@
           <label class="chk"><input id="swtbench_mode" type="checkbox" /> SWT-BENCH MODE <span class="tip" tabindex="0" data-tip="Generate tests that FAIL on the buggy code and PASS once it is fixed — SWT-Bench's fail-to-pass criterion.">i</span></label>
           <label class="chk"><input id="skip_tests" type="checkbox" /> SKIP EXISTING TESTS <span class="tip" tabindex="0" data-tip="Ignore the repo's own test files when choosing which source to send to the model.">i</span></label>
           <label class="chk"><input id="write_output" type="checkbox" checked /> WRITE TO ./output <span class="tip" tabindex="0" data-tip="Also save generated tests to ./output on disk, not just display them here.">i</span></label>
+          <label class="chk"><input id="verify" type="checkbox" /> VERIFY (RUN PYTEST) <span class="tip" tabindex="0" data-tip="Actually run the generated tests against the repo and report the pytest exit code. Python repos only. Executes model-written code on this machine, with no sandbox and no dependency install.">i</span></label>
         </div>
 
       </div>

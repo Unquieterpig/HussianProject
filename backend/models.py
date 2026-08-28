@@ -28,3 +28,4 @@ class GenerateRequest(BaseModel):
     framework_hint: Optional[str] = None
     swtbench_mode: bool = False
     write_output: bool = True
+    verify: bool = False  # run the generated tests (executes model code locally)

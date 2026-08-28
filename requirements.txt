@@ -3,3 +3,4 @@ fastapi>=0.110
 uvicorn[standard]>=0.27
 httpx>=0.27
 python-dotenv>=1.0
+pytest>=8            # subprocess-invoked to verify generated tests

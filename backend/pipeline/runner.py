@@ -12,6 +12,7 @@ Yields plain dicts (serialized to NDJSON by the API layer). Event types:
 
 from __future__ import annotations
 
+import asyncio
 from typing import AsyncIterator, Dict
 
 from .. import config
@@ -21,6 +22,7 @@ from .parser import parse_tests, tests_as_dicts, write_tests
 from .prompt import build_messages
 from .repo import download_repo_zip, extract_zip, parse_repo_url
 from .selector import select_files
+from .verify import EXIT_MEANING, run_pytest
 
 # Progress band reserved for live token streaming (start -> end).
 _LLM_PROGRESS_START = 0.40
@@ -127,14 +129,34 @@ async def run_pipeline(req: GenerateRequest) -> AsyncIterator[Dict]:
         yield {"type": "log", "level": "ok", "stage": "parse",
                "message": f"Parsed {len(tests)} test file(s)"}
 
-        # --- 7. Optionally write to disk -----------------------------------
+        # --- 7. Optionally run the tests we just generated ------------------
+        verdict = None
+        if req.verify and tests:
+            if stats["language"] != "python":
+                yield {"type": "log", "level": "warn", "stage": "verify",
+                       "message": (f"Verification runs pytest only; repo language is "
+                                   f"{stats['language']}. Skipped.")}
+            else:
+                yield {"type": "stage", "stage": "verify", "progress": 0.94,
+                       "message": "Running generated tests against the repo..."}
+                code, out = await asyncio.to_thread(run_pytest, files, tests)
+                verdict = {"exit_code": code, "output": out}
+                level = "ok" if code == 0 else "warn"
+                yield {"type": "log", "level": level, "stage": "verify",
+                       "message": (f"pytest exit={code} "
+                                   f"({EXIT_MEANING.get(code, 'unknown')})")}
+                for line in out.strip().splitlines()[-12:]:
+                    yield {"type": "log", "level": level, "stage": "verify",
+                           "message": "  " + line}
+
+        # --- 8. Optionally write to disk -----------------------------------
         out_dir = None
         if req.write_output and tests:
             out_dir = write_tests(owner, repo, tests)
             yield {"type": "log", "level": "ok", "stage": "write",
                    "message": f"Wrote test files to {out_dir}"}
 
-        # --- 8. Result -----------------------------------------------------
+        # --- 9. Result -----------------------------------------------------
         yield {
             "type": "result",
             "tests": tests_as_dicts(tests),
@@ -142,6 +164,7 @@ async def run_pipeline(req: GenerateRequest) -> AsyncIterator[Dict]:
             "stats": stats,
             "out_dir": out_dir,
             "repo": label,
+            "verify": verdict,
         }
         yield {"type": "stage", "stage": "done", "progress": 1.0,
                "message": "Complete."}

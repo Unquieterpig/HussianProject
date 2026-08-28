@@ -40,7 +40,7 @@ function setCfgCollapsed(on) {
 const PERSIST = [
   "repo_url", "ref", "provider", "model", "model_custom", "base_url",
   "max_files", "max_kb", "framework_hint", "include_globs",
-  "swtbench_mode", "skip_tests", "write_output",
+  "swtbench_mode", "skip_tests", "write_output", "verify",
 ];
 const savedState = (() => {
   try { return JSON.parse(localStorage.getItem("testforge")) || {}; }
@@ -209,6 +209,7 @@ function buildPayload() {
     framework_hint: $("framework_hint").value.trim() || null,
     swtbench_mode: $("swtbench_mode").checked,
     write_output: $("write_output").checked,
+    verify: $("verify").checked,
   };
 }
 
@@ -478,6 +479,6 @@ document.querySelectorAll(".tip").forEach((el) => {
 // restore persisted plain fields (provider/model restore inside loadProviders)
 ["repo_url", "ref", "model_custom", "base_url", "max_files", "max_kb",
  "framework_hint", "include_globs", "swtbench_mode", "skip_tests",
- "write_output"].forEach(restoreField);
+ "write_output", "verify"].forEach(restoreField);
 
 loadProviders();
