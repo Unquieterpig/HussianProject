@@ -12,6 +12,7 @@ const BAR_WIDTH = 40;
 
 let PRESETS = [];
 let abortController = null;
+let verdictSummary = ""; // issue mode: shown in the stage line when the run completes
 
 /* ------------------- mobile tabs + config collapse ---------------- */
 const isMobile = () => window.matchMedia("(max-width: 900px)").matches;
@@ -38,9 +39,9 @@ function setCfgCollapsed(on) {
 
 /* -------------------------- persistence --------------------------- */
 const PERSIST = [
-  "repo_url", "ref", "provider", "model", "model_custom", "base_url",
+  "repo_url", "ref", "issue", "provider", "model", "model_custom", "base_url",
   "max_files", "max_kb", "framework_hint", "include_globs",
-  "swtbench_mode", "skip_tests", "write_output", "verify",
+  "skip_tests", "write_output", "verify",
 ];
 const savedState = (() => {
   try { return JSON.parse(localStorage.getItem("testforge")) || {}; }
@@ -202,12 +203,12 @@ function buildPayload() {
     model: selectedModel(),
     base_url: $("base_url").value.trim() || null,
     ref: $("ref").value.trim() || null,
+    issue: parseInt($("issue").value, 10) || null,
     include_globs: globs,
     skip_tests: $("skip_tests").checked,
     max_files: parseInt($("max_files").value, 10) || 10,
     max_bytes: (parseInt($("max_kb").value, 10) || 120) * 1024,
     framework_hint: $("framework_hint").value.trim() || null,
-    swtbench_mode: $("swtbench_mode").checked,
     write_output: $("write_output").checked,
     verify: $("verify").checked,
   };
@@ -241,6 +242,7 @@ async function run() {
   $("token_count").textContent = "0 tok";
   $("result_meta").textContent = "";
   setProgress(0, "init", "starting...");
+  verdictSummary = "";
   document.querySelector(".progress-panel").classList.add("active");
 
   setRunning(true);
@@ -285,7 +287,8 @@ async function run() {
 
         switch (ev.type) {
           case "stage":
-            setProgress(ev.progress, ev.stage, ev.message);
+            setProgress(ev.progress, ev.stage,
+              ev.stage === "done" && verdictSummary ? verdictSummary : ev.message);
             break;
           case "log":
             log(ev.level || "info", (ev.stage || "log").toUpperCase(), ev.message);
@@ -313,9 +316,14 @@ async function run() {
           case "result":
             $("token_count").textContent = tokenCount + " tok";
             renderResults(ev);
+            verdictSummary = Object.entries(ev.verdicts || {})
+              .map(([k, v]) => `${k}: ${v.region}`).join("  ::  ");
+            if (verdictSummary) verdictSummary = "Complete  ::  " + verdictSummary;
             break;
           case "error":
             log("err", "ERROR", ev.message);
+            $("stage_tag").textContent = "[ ERROR ]";
+            $("stage_msg").textContent = ev.message;
             $("results").innerHTML =
               '<div class="empty">generation failed — see status log.</div>';
             autoTab("log");
@@ -328,8 +336,12 @@ async function run() {
   } catch (e) {
     if (e.name === "AbortError") {
       log("warn", "ABORT", "Generation aborted by user.");
+      $("stage_tag").textContent = "[ ABORTED ]";
+      $("stage_msg").textContent = "aborted by user";
     } else {
       log("err", "ERROR", e.message);
+      $("stage_tag").textContent = "[ ERROR ]";
+      $("stage_msg").textContent = e.message;
     }
   } finally {
     setRunning(false);
@@ -346,6 +358,9 @@ function setRunning(on) {
 /* ---------------------------- results ----------------------------- */
 function renderResults(ev) {
   const tests = ev.tests || [];
+  const human = ev.human_tests || [];
+  const all = tests.map((t) => ({ ...t, tag: "LLM" }))
+    .concat(human.map((t) => ({ ...t, tag: "HUMAN (PR)" })));
   const box = $("results");
   box.innerHTML = "";
 
@@ -354,16 +369,18 @@ function renderResults(ev) {
   meta.push(`${tests.length} file(s)`);
   if (ev.out_dir) meta.push(`saved: ${ev.out_dir}`);
   $("result_meta").textContent = meta.join("  ::  ");
-  $("files_tab").textContent = tests.length ? `FILES (${tests.length})` : "FILES";
+  $("files_tab").textContent = all.length ? `FILES (${all.length})` : "FILES";
   autoTab("files");
 
-  if (!tests.length) {
-    box.innerHTML =
-      '<div class="empty">model returned no parseable test blocks. Check MODEL STREAM for raw output.</div>';
+  if (ev.issue) box.appendChild(verdictBlock(ev));
+
+  if (!all.length) {
+    box.insertAdjacentHTML("beforeend",
+      '<div class="empty">model returned no parseable test blocks. Check MODEL STREAM for raw output.</div>');
     return;
   }
 
-  tests.forEach((t, i) => {
+  all.forEach((t, i) => {
     const wrap = document.createElement("details");
     wrap.className = "test-file";
     wrap.open = i === 0; // first file expanded, rest collapsed
@@ -375,7 +392,7 @@ function renderResults(ev) {
     title.className = "tf-title";
     title.innerHTML =
       `<span class="tf-name">${escapeHtml(t.filename)}</span>` +
-      `<span class="tf-lang">${escapeHtml(t.language || "")}</span>` +
+      `<span class="tf-lang">${escapeHtml((ev.issue ? t.tag + " · " : "") + (t.language || ""))}</span>` +
       `<span class="tf-lines">${lines} lines</span>`;
 
     const actions = document.createElement("div");
@@ -401,6 +418,39 @@ function renderResults(ev) {
     wrap.appendChild(pre);
     box.appendChild(wrap);
   });
+}
+
+/* issue mode: where each suite landed in the specified/programmed/tested Venn */
+function verdictBlock(ev) {
+  const iss = ev.issue;
+  const lbl = (c) =>
+    c == null ? "-" : ({ 0: "PASS", 1: "FAIL", 5: "NONE", "-1": "TIME" }[c] || "NORUN");
+  let s = `ISSUE #${iss.number} [${iss.state}]  ${iss.title}\n`;
+  if (iss.pr)
+    s += `fixed by PR #${iss.pr}   buggy=${iss.base.slice(0, 10)}   fixed=${iss.head.slice(0, 10)}\n`;
+  s += `\n${"".padEnd(14)}${"base".padEnd(8)}${"head".padEnd(8)}region\n`;
+  const v = ev.verdicts || {};
+  for (const k of Object.keys(v))
+    s += `${(k + " tests").padEnd(14)}${lbl(v[k].base).padEnd(8)}${lbl(v[k].head).padEnd(8)}${v[k].region}\n`;
+  if (!Object.keys(v).length) s += "(nothing was run)\n";
+  const pre = document.createElement("pre");
+  pre.className = "verdict";
+  pre.textContent = s + "\n";
+  pre.appendChild(ghLink(iss.url, "[ open issue ]"));
+  if (iss.pr) {
+    pre.append("  ");
+    pre.appendChild(ghLink(`https://github.com/${ev.repo}/pull/${iss.pr}`, `[ fix PR #${iss.pr} ]`));
+  }
+  return pre;
+}
+
+function ghLink(href, text) {
+  const a = document.createElement("a");
+  a.href = href;
+  a.target = "_blank";
+  a.rel = "noopener";
+  a.textContent = text;
+  return a;
 }
 
 function mkBtn(label, onClick) {
@@ -430,14 +480,62 @@ function downloadFile(name, content) {
 $("provider").addEventListener("change", onProviderChange);
 $("run_btn").addEventListener("click", run);
 $("stop_btn").addEventListener("click", () => abortController && abortController.abort());
-["repo_url", "ref"].forEach((id) =>
+["repo_url", "ref", "issue"].forEach((id) =>
   $(id).addEventListener("keydown", (e) => {
     if (e.key === "Enter") run();
   })
 );
-$("repo_url").addEventListener("input", () =>
-  $("repo_url").classList.remove("invalid")
-);
+$("repo_url").addEventListener("input", () => {
+  $("repo_url").classList.remove("invalid");
+  // a different repo makes the old issue number meaningless
+  if ($("repo_url").value.trim() !== issuesLoadedFor) {
+    $("issue").value = "";
+    updateIssueUI();
+  }
+});
+
+/* issue mode: the repo's open + closed issues feed the ISSUE # datalist and
+   the hint line under it. Reloaded whenever the repo changes. */
+let ISSUES = {};
+let issuesLoadedFor = "";
+async function loadIssues() {
+  const repo = $("repo_url").value.trim();
+  if (!repo || repo === issuesLoadedFor) return;
+  issuesLoadedFor = repo;
+  const dl = $("issue_list");
+  dl.innerHTML = "";
+  ISSUES = {};
+  try {
+    const res = await fetch("/api/issues?repo=" + encodeURIComponent(repo));
+    const list = await res.json();
+    if (!res.ok) throw new Error(list.detail || "HTTP " + res.status);
+    for (const i of list) {
+      ISSUES[i.number] = i;
+      const o = document.createElement("option");
+      o.value = i.number;
+      o.label = `[${i.state}] ${i.title}`;
+      dl.appendChild(o);
+    }
+    log("info", "ISSUES", `${list.length} issue(s) listed for ${repo} (newest first)`);
+  } catch (e) {
+    issuesLoadedFor = "";
+    log("warn", "ISSUES", "Could not list issues: " + e.message);
+  }
+  updateIssueUI();
+}
+
+// show what RUN will do and which issue was picked, before running anything
+function updateIssueUI() {
+  const n = parseInt($("issue").value, 10) || null;
+  const info = n && ISSUES[n];
+  $("issue_hint").textContent = info ? `[${info.state}] ${info.title}` : "";
+  $("run_btn").textContent = n ? `>> RUN ISSUE #${n}` : ">> RUN GENERATION";
+  // issue mode always runs pytest and never sends the repo's own tests
+  for (const id of ["verify", "skip_tests"]) $(id).disabled = !!n;
+}
+$("issue").addEventListener("focus", loadIssues);
+$("issue").addEventListener("input", updateIssueUI);
+$("repo_url").addEventListener("change", loadIssues);
 
 $("reset_btn").addEventListener("click", () => {
   localStorage.removeItem("testforge");
@@ -477,8 +575,10 @@ document.querySelectorAll(".tip").forEach((el) => {
 });
 
 // restore persisted plain fields (provider/model restore inside loadProviders)
-["repo_url", "ref", "model_custom", "base_url", "max_files", "max_kb",
- "framework_hint", "include_globs", "swtbench_mode", "skip_tests",
+["repo_url", "ref", "issue", "model_custom", "base_url", "max_files", "max_kb",
+ "framework_hint", "include_globs", "skip_tests",
  "write_output", "verify"].forEach(restoreField);
 
 loadProviders();
+updateIssueUI();
+loadIssues();

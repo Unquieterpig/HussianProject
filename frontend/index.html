@@ -20,7 +20,7 @@
   \_/ \____/\____/  \_/ \_|    \___/\_| \_|\____|____/
 </pre>
       <div class="wordmark">&gt;&gt; TESTFORGE :: v0.1.0</div>
-      <div class="subtitle">TEST-CASE GENERATION ENGINE &nbsp;::&nbsp; v0.1.0<span class="blink">_</span></div>
+      <div class="subtitle">TEST-CASE GENERATION ENGINE</div>
     </header>
 
     <!-- ============================ CONFIG ============================= -->
@@ -47,12 +47,19 @@
           <input id="ref" type="text" spellcheck="false" autocomplete="off" placeholder="main" />
         </label>
 
-        <label class="field span3">
+        <label class="field span2">
+          <span>ISSUE # <em>(optional)</em> <span class="tip" tabindex="0" data-tip="Issue mode: reproduce this GitHub issue. A closed issue is also run against its fix and compared with the PR's own tests; an open issue is only checked to fail. Click the field to list the repo's open and closed issues. In issue mode VERIFY and SKIP EXISTING TESTS are always on.">i</span></span>
+          <input id="issue" type="text" inputmode="numeric" list="issue_list" spellcheck="false" autocomplete="off" placeholder="123" />
+          <datalist id="issue_list"></datalist>
+          <small id="issue_hint" class="hint"></small>
+        </label>
+
+        <label class="field span2">
           <span>PROVIDER <span class="tip" tabindex="0" data-tip="Which LLM backend generates the tests.">i</span></span>
           <select id="provider"></select>
         </label>
 
-        <label class="field span3">
+        <label class="field span2">
           <span>MODEL <span class="tip" tabindex="0" data-tip="The specific model to use.">i</span></span>
           <select id="model"></select>
           <input id="model_custom" type="text" spellcheck="false" autocomplete="off"
@@ -95,7 +102,6 @@
         </details>
 
         <div class="field toggles span6">
-          <label class="chk"><input id="swtbench_mode" type="checkbox" /> SWT-BENCH MODE <span class="tip" tabindex="0" data-tip="Generate tests that FAIL on the buggy code and PASS once it is fixed — SWT-Bench's fail-to-pass criterion.">i</span></label>
           <label class="chk"><input id="skip_tests" type="checkbox" /> SKIP EXISTING TESTS <span class="tip" tabindex="0" data-tip="Ignore the repo's own test files when choosing which source to send to the model.">i</span></label>
           <label class="chk"><input id="write_output" type="checkbox" checked /> WRITE TO ./output <span class="tip" tabindex="0" data-tip="Also save generated tests to ./output on disk, not just display them here.">i</span></label>
           <label class="chk"><input id="verify" type="checkbox" /> VERIFY (RUN PYTEST) <span class="tip" tabindex="0" data-tip="Actually run the generated tests against the repo and report the pytest exit code. Python repos only. Executes model-written code on this machine, with no sandbox and no dependency install.">i</span></label>

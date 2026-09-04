@@ -47,7 +47,7 @@ def build_messages(
     *,
     language: str,
     framework_hint: Optional[str] = None,
-    swtbench_mode: bool = False,
+    issue_text: Optional[str] = None,
 ) -> List[Message]:
     framework = framework_hint or DEFAULT_FRAMEWORK.get(
         language, "the idiomatic test framework for this language"
@@ -59,12 +59,16 @@ def build_messages(
         "",
     ]
 
-    if swtbench_mode:
+    if issue_text:
         parts.append(
-            "SWT-BENCH MODE: Generate tests that specify intended behaviour such "
-            "that they FAIL on buggy or incomplete code and PASS once the code is "
-            "correct. Favour behaviour specification over implementation details.\n"
+            "ISSUE MODE: The GitHub issue below reports a bug. Write tests that "
+            "reproduce it: they must FAIL on the current (buggy) source shown "
+            "after it and PASS once the issue is fixed. Test the behaviour the "
+            "issue describes, not the implementation, and import from the real "
+            "module paths of the files shown.\n"
         )
+        parts.append(issue_text)
+        parts.append("")
 
     parts.append("Source files:\n")
     for path, text in selected:

@@ -29,6 +29,31 @@ _LLM_PROGRESS_START = 0.40
 _LLM_PROGRESS_END = 0.88
 
 
+async def stream_llm(provider, req: GenerateRequest, messages, full: list) -> AsyncIterator[Dict]:
+    """Stream the model as UI events; the visible text accumulates in ``full``."""
+    emitted = 0
+    async for chunk in provider.stream(
+        messages,
+        model=req.model,
+        temperature=req.temperature,
+        max_tokens=req.max_output_tokens,
+    ):
+        if chunk.reasoning:
+            yield {"type": "reasoning", "text": chunk.reasoning}
+        if chunk.content:
+            full.append(chunk.content)
+            yield {"type": "token", "text": chunk.content}
+            emitted += 1
+            # Nudge the progress bar forward as output accumulates.
+            if emitted % 24 == 0:
+                frac = min(1.0, emitted / 800.0)
+                progress = _LLM_PROGRESS_START + frac * (
+                    _LLM_PROGRESS_END - _LLM_PROGRESS_START
+                )
+                yield {"type": "stage", "stage": "llm", "progress": progress,
+                       "message": "Generating test cases (streaming)..."}
+
+
 async def run_pipeline(req: GenerateRequest) -> AsyncIterator[Dict]:
     try:
         yield {"type": "stage", "stage": "init", "progress": 0.02,
@@ -79,7 +104,6 @@ async def run_pipeline(req: GenerateRequest) -> AsyncIterator[Dict]:
             selected,
             language=stats["language"],
             framework_hint=req.framework_hint,
-            swtbench_mode=req.swtbench_mode,
         )
         provider = build_provider(req.provider, base_url=req.base_url)
         if req.provider != "mock" and not getattr(provider, "api_key", ""):
@@ -89,34 +113,14 @@ async def run_pipeline(req: GenerateRequest) -> AsyncIterator[Dict]:
             )
         yield {"type": "log", "level": "info", "stage": "llm",
                "message": (f"Provider={provider.label}  model={req.model}  "
-                           f"temp={req.temperature}"
-                           + ("  [SWT-BENCH MODE]" if req.swtbench_mode else ""))}
+                           f"temp={req.temperature}")}
 
         # --- 5. Stream generation ------------------------------------------
         yield {"type": "stage", "stage": "llm", "progress": _LLM_PROGRESS_START,
                "message": "Generating test cases (streaming)..."}
         full: list[str] = []
-        emitted = 0
-        async for chunk in provider.stream(
-            messages,
-            model=req.model,
-            temperature=req.temperature,
-            max_tokens=req.max_output_tokens,
-        ):
-            if chunk.reasoning:
-                yield {"type": "reasoning", "text": chunk.reasoning}
-            if chunk.content:
-                full.append(chunk.content)
-                yield {"type": "token", "text": chunk.content}
-                emitted += 1
-                # Nudge the progress bar forward as output accumulates.
-                if emitted % 24 == 0:
-                    frac = min(1.0, emitted / 800.0)
-                    progress = _LLM_PROGRESS_START + frac * (
-                        _LLM_PROGRESS_END - _LLM_PROGRESS_START
-                    )
-                    yield {"type": "stage", "stage": "llm", "progress": progress,
-                           "message": "Generating test cases (streaming)..."}
+        async for event in stream_llm(provider, req, messages, full):
+            yield event
 
         text = "".join(full)
         if not text.strip():

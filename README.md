@@ -1,112 +1,103 @@
 # TESTFORGE
 
-An LLM test-case generator for a summer research project. Point it at a public
-GitHub repo; it pulls the source, selects the most relevant files, prompts a
-language model, and streams back runnable test cases — with a live status log
-and an ASCII progress bar.
+Turns a GitHub issue into a bug-reproducing test, then checks whether that
+test actually catches the bug.
 
-Built so that **any** OpenAI-compatible model is a drop-in: DeepSeek (default),
-OpenAI, a local server, or our own SWT-Bench scaffold once it exists. Swapping
-models is just a base URL + model name.
+Give it a public repo and an issue number. It reads the issue, finds the buggy
+file, asks a language model for a test, and runs that test at the commit before
+the fix and the commit after. A test that fails before and passes after caught
+the bug. The same run also executes the human-written test from the fix PR, so
+the model's test and the maintainer's test are scored side by side.
+
+Any OpenAI-compatible model is a drop-in (DeepSeek by default, OpenAI, Claude,
+a local server, or an offline mock). The UI is an ASCII terminal with a live
+status log and progress bar.
 
 ```
-+-----------+    +----------+    +----------+    +-----------+    +---------+
-|  GitHub   | -> |  select  | -> |  prompt  | -> |   LLM     | -> |  parse  |
-|   repo    |    |  files   |    |  build   |    | (stream)  |    |  tests  |
-+-----------+    +----------+    +----------+    +-----------+    +---------+
-        every stage streams status -> the UI log + progress bar
++---------+   +-----------+   +-------------+   +---------+   +------------------+
+|  issue  |-> |  fix PR   |-> |  buggy and  |-> |   LLM   |-> |  run at both     |
+|  #1250  |   |  (merged) |   | fixed trees |   |  writes |   |  commits, score  |
+|         |   |           |   |             |   |  a test |   |  LLM vs human    |
++---------+   +-----------+   +-------------+   +---------+   +------------------+
 ```
 
 ## Quick start
 
 ```bash
-# 1. install deps (Python 3.10+)
 pip install -r requirements.txt
-
-# 2. add your key
-copy .env.example .env        # Windows  (cp on macOS/Linux)
-#   then edit .env and set DEEPSEEK_API_KEY=...
-
-# 3. run
-python run.py
-#   opens http://127.0.0.1:8000
+copy .env.example .env      # cp on macOS/Linux; set DEEPSEEK_API_KEY, optionally GITHUB_TOKEN
+python run.py               # opens http://127.0.0.1:8000
 ```
 
-No key yet? Choose the **Demo / Mock** provider in the UI — the whole pipeline
-and interface run end-to-end with a canned model, no network or spend.
+No API key? Pick the **Demo** provider and everything runs with a canned model.
+`GITHUB_TOKEN` is optional; without it GitHub allows 60 requests an hour and an
+issue run uses about seven.
 
 ## Using it
 
-1. Enter a repo: `owner/repo` or a full `https://github.com/owner/repo` URL.
-2. Pick a provider + model (DeepSeek is default; `deepseek-reasoner` also shows
-   its chain-of-thought in the MODEL STREAM panel).
-3. Hit **RUN GENERATION**. Watch the status log + progress bar; generated test
-   files appear at the bottom with COPY / DOWNLOAD, and are also written to
-   `./output/<owner>-<repo>/` (toggle off with the WRITE TESTS checkbox).
+1. Enter `owner/repo`.
+2. Click **ISSUE #** to list the repo's open and closed issues, and pick one.
+3. Choose a provider and model, then **RUN GENERATION**.
 
-### Options worth knowing
-- **MAX FILES / MAX KB** — the budget for how much source goes to the model.
-  Real repos are huge; the selector scores files (dominant language, density of
-  definitions, shallow non-vendored paths) and keeps the best within budget.
-- **INCLUDE GLOBS** — force specific files in, e.g. `src/*.py, lib/**/*.ts`.
-- **SWT-BENCH MODE** — instructs the model to write tests that fail on buggy
-  code and pass once fixed (the SWT-Bench fail-to-pass criterion).
-- **VERIFY (RUN PYTEST)** — actually runs the generated tests against the
-  downloaded repo in a temp dir and logs the pytest exit code. Python repos
-  only, and it runs the generated files only, never the repo's own suite.
-  ⚠ This executes model-written code on your machine with no sandbox — keep the
-  server local. No dependencies are installed, so a repo with third-party
-  imports will fail at collection (exit 2); that is still the signal that
-  separates a real test from a hallucinated one.
+**Closed issue** (the evaluation case). TESTFORGE finds the merged PR that
+references the issue, downloads the tree before and after the fix, shows the
+model the issue plus the files the fix touched as they were before the fix,
+and runs both the model's tests and the PR's own test files at both commits.
+Each suite lands in one region:
 
-## Plugging in our own model (the research path)
+| base | head | region              | meaning                                   |
+|------|------|---------------------|-------------------------------------------|
+| FAIL | PASS | caught the bug      | reproduces the issue, the fix resolves it |
+| PASS | PASS | redundant           | never touched the bug                     |
+| FAIL | FAIL | fails at both       | wrong API or wrong behaviour              |
+| PASS | FAIL | contradicts the fix | tests the old behaviour                   |
 
-The whole point of the provider abstraction: when our scaffolded SWT-Bench
-system is ready, serve it behind an OpenAI-compatible `/chat/completions`
-endpoint (vLLM, Ollama in OpenAI mode, or a thin FastAPI wrapper), then in the
-UI choose **Custom / Your scaffold**, set:
+These are the regions of the specified / programmed / tested Venn diagram: the
+issue is what is specified, the code is what is programmed, and a good test
+sits where all three overlap.
 
-- **BASE URL** = `https://your-scaffold.example/v1`
-- **MODEL** = whatever name your server expects
-- **API KEY** = paste here, or set `CUSTOM_API_KEY` in `.env`
+**Open issue** (the use case). No fix exists yet, so the model's test only runs
+on the current code and is reported as failing (as it should) or passing
+(missed the bug).
 
-No app code changes. To compare arms (Devstral-Small-2, Qwen2.5-Coder-32B, etc.)
-just point the base URL at each server in turn.
+**No issue number.** Plain mode: picks the most relevant source files within
+the MAX FILES / MAX KB budget and generates ordinary tests for them. VERIFY
+runs them once against the current code.
 
-If you'd rather call a scaffold **in-process** (Python, no HTTP), subclass
-`LLMProvider` in `backend/providers/base.py` and register it in
-`backend/providers/registry.py` — that's the only place that maps a provider id
-to an implementation.
+Generated tests appear with COPY / DOWNLOAD and are written to
+`./output/<owner>-<repo>/`.
+
+## Limits
+
+- Runs are Python and pytest only, and no dependencies are installed, so a
+  repo with third-party imports reports `did not run`. Dependency-free repos
+  such as more-itertools work end to end.
+- Locating the buggy file for an open issue is a heuristic: files the issue
+  names, or files defining an identifier the issue mentions.
+- The first merged PR that references the issue is taken as the fix.
+- Tests run on this machine with no sandbox. Keep the server local.
 
 ## Layout
 
 ```
 backend/
-  main.py              FastAPI app: /api/providers, /api/generate (NDJSON stream)
-  config.py            provider presets + key resolution
-  models.py            request schema
-  providers/
-    base.py            LLMProvider interface  (subclass to add a backend)
-    openai_compatible.py   DeepSeek / OpenAI / custom endpoints
-    mock.py            offline demo provider
-    registry.py        id -> provider instance
+  main.py          FastAPI: /api/providers, /api/models, /api/issues, /api/generate
   pipeline/
-    repo.py            GitHub zip download + extract (no git binary needed)
-    selector.py        budgeted source-file selection
-    prompt.py          system + user message construction
-    parser.py          model text -> test files (+ write to ./output)
-    verify.py          runs generated tests via pytest in a temp dir
-    runner.py          orchestrates stages, emits UI events
-frontend/
-  index.html  style.css  app.js     ASCII monochrome terminal UI
-run.py                   launcher (uvicorn)
+    issues.py      issue mode: issue -> fix PR -> both trees -> run and score
+    runner.py      plain mode and the shared LLM streaming loop
+    repo.py        GitHub zipball download, no git binary needed
+    selector.py    budgeted file selection
+    prompt.py      prompt construction
+    parser.py      model text -> test files
+    verify.py      pytest in a temp dir
+  providers/       LLMProvider interface: OpenAI-compatible, Anthropic, mock
+frontend/          index.html  style.css  app.js
+run.py             launcher
 ```
 
-## Notes / limits (v0.1)
-- Sends raw source in the prompt; mind context limits and API spend. The token
-  estimate in the status log is rough (chars/4).
-- File selection is heuristic, not semantic retrieval — fine for a first pass.
-- VERIFY runs the tests against the repo's *current* code only. The real
-  fail-to-pass check needs two runs (buggy vs patched), which needs SWT-Bench
-  instance data with a gold patch rather than a bare GitHub URL — that is the
-  next milestone.
+## Adding a model
+
+Any `/chat/completions` endpoint works: choose **Custom**, set BASE URL and the
+model name, and put the key in `.env` as `CUSTOM_API_KEY`. For an in-process
+backend, subclass `LLMProvider` in `backend/providers/base.py` and register it
+in `registry.py`.

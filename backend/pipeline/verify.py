@@ -1,6 +1,6 @@
 """Run the generated tests against the repo they were written for.
 
-The SWT-Bench criterion is about *executed* tests, so a generated file is only
+The fail-to-pass criterion is about *executed* tests, so a generated file is only
 evidence once pytest has actually collected and run it. This drops the extracted
 repo plus the model's test files into a temp dir and runs pytest on the generated
 files only (never the repo's own suite), reporting the exit code and output tail.

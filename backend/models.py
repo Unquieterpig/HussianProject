@@ -17,6 +17,7 @@ class GenerateRequest(BaseModel):
     base_url: Optional[str] = None
 
     ref: Optional[str] = None  # branch / tag / commit
+    issue: Optional[int] = None  # issue mode: reproduce this GitHub issue number
     include_globs: List[str] = []
     skip_tests: bool = False
 
@@ -26,6 +27,5 @@ class GenerateRequest(BaseModel):
     max_output_tokens: Optional[int] = 4000
 
     framework_hint: Optional[str] = None
-    swtbench_mode: bool = False
     write_output: bool = True
     verify: bool = False  # run the generated tests (executes model code locally)

@@ -142,6 +142,14 @@ body::before {
   gap: 2px;
 }
 .field > span em { color: var(--fg-faint); font-style: normal; letter-spacing: 0; }
+.field .hint {
+  color: var(--fg-dim);
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.field .hint:empty { display: none; }
 
 input[type="text"], input[type="password"], input[type="number"], select {
   width: 100%;
@@ -215,6 +223,7 @@ input.invalid {
   padding: 4px 0; /* bigger touch target */
 }
 .chk:hover { color: var(--fg); }
+.chk:has(input:disabled) { color: var(--fg-faint); cursor: default; }
 .chk input { accent-color: #fff; width: 14px; height: 14px; margin: 0; }
 
 /* info bubbles: hover or focus (tap on touch) shows a tooltip.
@@ -411,6 +420,17 @@ input.invalid {
 /* ---------------------------- results ----------------------------- */
 .results { padding: 12px; display: flex; flex-direction: column; gap: 12px; }
 .results .empty { color: var(--fg-faint); padding: 10px; }
+.results .verdict {
+  margin: 0;
+  padding: 10px;
+  border: 1px dashed var(--line-bright);
+  color: var(--fg);
+  font-size: 12px;
+  white-space: pre;
+  overflow-x: auto;
+}
+.results .verdict a { color: var(--accent); text-decoration: none; }
+.results .verdict a:hover { text-decoration: underline; }
 
 .test-file { border: 1px solid var(--line); }
 .test-file > summary {

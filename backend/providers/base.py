@@ -1,6 +1,6 @@
 """The provider contract every model implementation satisfies.
 
-To add a new backend (e.g. wire the SWT-Bench scaffold in-process instead of over
+To add a new backend (e.g. wire a scaffold of our own in-process instead of over
 HTTP), subclass ``LLMProvider`` and implement ``stream``. The pipeline only ever
 sees this interface, so nothing else has to change.
 """

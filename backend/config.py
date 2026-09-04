@@ -1,8 +1,8 @@
 """Configuration: provider presets, environment, and key resolution.
 
 A "provider" here is any OpenAI-compatible /chat/completions endpoint. DeepSeek,
-OpenAI, a local vLLM/Ollama server, and (eventually) the project's own SWT-Bench
-scaffold all speak the same protocol, so swapping models is just a base_url +
+OpenAI, a local vLLM/Ollama server, and (eventually) a scaffold of
+our own all speak the same protocol, so swapping models is just a base_url +
 model name change. The "mock" provider needs no network and is for trying the UI.
 """
 

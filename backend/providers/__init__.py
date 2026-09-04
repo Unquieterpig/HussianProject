@@ -1,7 +1,7 @@
 """LLM provider abstraction.
 
 Everything the pipeline needs from a model lives behind ``LLMProvider`` so that
-DeepSeek, OpenAI, a local server, or the project's own SWT-Bench scaffold are
+DeepSeek, OpenAI, a local server, or a scaffold of our own are
 interchangeable. See ``base.py`` for the contract and ``registry.py`` for how a
 provider id is turned into a concrete instance.
 """

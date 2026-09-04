@@ -72,7 +72,8 @@ def select_files(
         lang = CODE_EXT.get(ext)
         if not lang:
             continue
-        if len(data) > MAX_SINGLE_FILE_BYTES:
+        forced = any(fnmatch.fnmatch(path, g) for g in include_globs)
+        if len(data) > MAX_SINGLE_FILE_BYTES and not forced:
             continue
         try:
             text = data.decode("utf-8")
@@ -89,7 +90,7 @@ def select_files(
                 "size": len(data),
                 "lang": lang,
                 "is_test": bool(TEST_HINT.search(path)),
-                "forced": any(fnmatch.fnmatch(path, g) for g in include_globs),
+                "forced": forced,
                 "depth": len(parts),
                 "defs": len(DEF_HINT.findall(text)),
             }
