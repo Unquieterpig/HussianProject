@@ -183,6 +183,7 @@ async def run_issue_pipeline(req: GenerateRequest) -> AsyncIterator[Dict]:
         pr = buggy = fixed = None
         fix_paths: List[str] = []
         human_paths: List[str] = []
+        patches: Dict[str, str] = {}  # PR diff per file, so the UI can show what the human added
         if closed:
             pr = await find_fix_pr(owner, repo, n)
             if pr is None:
@@ -190,6 +191,7 @@ async def run_issue_pipeline(req: GenerateRequest) -> AsyncIterator[Dict]:
                                    "Pick another one.")
             buggy, fixed, changed = await pr_commits(owner, repo, pr)
             fix_paths, human_paths = split_pr_files(changed)
+            patches = {f["filename"]: f.get("patch") or "" for f in changed}
             yield _log("ok", "issue", f"Fixed by PR #{pr}: {len(fix_paths)} source + "
                                       f"{len(human_paths)} test file(s) changed")
             yield _log("info", "issue", f"buggy={buggy[:10]}  fixed={fixed[:10]}")
@@ -290,7 +292,9 @@ async def run_issue_pipeline(req: GenerateRequest) -> AsyncIterator[Dict]:
             yield _log("ok", "write", f"Wrote test files to {out_dir}")
 
         yield {"type": "result", "tests": tests_as_dicts(tests),
-               "human_tests": tests_as_dicts(human), "raw": text, "stats": stats,
+               "human_tests": [{**d, "diff": patches.get(d["filename"], "")}
+                               for d in tests_as_dicts(human)],
+               "raw": text, "stats": stats,
                "out_dir": out_dir, "repo": f"{owner}/{repo}",
                "issue": {"number": n, "title": issue["title"], "state": issue["state"],
                          "url": issue["html_url"], "pr": pr, "base": buggy, "head": fixed},

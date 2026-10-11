@@ -56,6 +56,10 @@ These are the regions of the specified / programmed / tested Venn diagram: the
 issue is what is specified, the code is what is programmed, and a good test
 sits where all three overlap.
 
+The results panel shows the region table, a 2x2 grid with each suite placed
+in its cell, the pytest output behind every verdict, and the model's tests
+side by side with the diff of the PR's test file (what the maintainer added).
+
 **Open issue** (the use case). No fix exists yet, so the model's test only runs
 on the current code and is reported as failing (as it should) or passing
 (missed the bug).

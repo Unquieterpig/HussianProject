@@ -21,6 +21,14 @@ app = FastAPI(title="TESTFORGE", version="0.1.0")
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
 
+@app.middleware("http")
+async def revalidate(request, call_next):
+    """Browsers otherwise keep serving a stale app.js/style.css after an edit."""
+    resp = await call_next(request)
+    resp.headers.setdefault("Cache-Control", "no-cache")
+    return resp
+
+
 @app.get("/api/providers")
 async def providers() -> list[dict]:
     """Provider presets (no secrets) for populating the UI."""

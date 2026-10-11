@@ -14,7 +14,7 @@ from typing import AsyncIterator, List, Optional, Tuple
 
 import httpx
 
-from .base import Chunk, LLMProvider, Message
+from .base import Chunk, LLMProvider, Message, http_error
 
 ANTHROPIC_VERSION = "2023-06-01"
 
@@ -93,9 +93,7 @@ class AnthropicProvider(LLMProvider):
             async with client.stream("POST", url, headers=headers, json=payload) as resp:
                 if resp.status_code >= 400:
                     body = (await resp.aread()).decode("utf-8", "replace")
-                    raise RuntimeError(
-                        f"Anthropic API returned HTTP {resp.status_code}: {body[:600]}"
-                    )
+                    raise http_error("Anthropic API", resp.status_code, body)
                 async for line in resp.aiter_lines():
                     if not line.startswith("data:"):
                         continue

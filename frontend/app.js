@@ -359,8 +359,6 @@ function setRunning(on) {
 function renderResults(ev) {
   const tests = ev.tests || [];
   const human = ev.human_tests || [];
-  const all = tests.map((t) => ({ ...t, tag: "LLM" }))
-    .concat(human.map((t) => ({ ...t, tag: "HUMAN (PR)" })));
   const box = $("results");
   box.innerHTML = "";
 
@@ -369,79 +367,149 @@ function renderResults(ev) {
   meta.push(`${tests.length} file(s)`);
   if (ev.out_dir) meta.push(`saved: ${ev.out_dir}`);
   $("result_meta").textContent = meta.join("  ::  ");
-  $("files_tab").textContent = all.length ? `FILES (${all.length})` : "FILES";
+  const total = tests.length + human.length;
+  $("files_tab").textContent = total ? `FILES (${total})` : "FILES";
   autoTab("files");
 
-  if (ev.issue) box.appendChild(verdictBlock(ev));
-
-  if (!all.length) {
-    box.insertAdjacentHTML("beforeend",
-      '<div class="empty">model returned no parseable test blocks. Check MODEL STREAM for raw output.</div>');
+  const noLLM = "model returned no parseable test blocks. Check MODEL STREAM for raw output.";
+  if (!ev.issue) {
+    if (!tests.length) box.appendChild(el("div", "empty", noLLM));
+    tests.forEach((t, i) => box.appendChild(fileCard(t, i === 0)));
     return;
   }
 
-  all.forEach((t, i) => {
-    const wrap = document.createElement("details");
-    wrap.className = "test-file";
-    wrap.open = i === 0; // first file expanded, rest collapsed
+  // issue mode: the verdict on top, then the LLM's and the PR's tests side by side
+  const pr = ev.issue.pr;
+  const cols = el("div", "compare");
+  cols.append(
+    column("LLM-WRITTEN TESTS", tests, noLLM),
+    column(pr ? `HUMAN TESTS :: FIX PR #${pr}` : "HUMAN TESTS", human,
+      pr ? "the fix PR changed no Python test files." : "open issue: no fix PR, so no human tests yet.")
+  );
+  box.append(verdictBlock(ev), cols);
+}
 
-    const head = document.createElement("summary");
-    const lines = t.content.split("\n").length;
+function column(title, files, emptyMsg) {
+  const col = el("div", "compare-col");
+  col.appendChild(el("div", "compare-head", title));
+  if (!files.length) col.appendChild(el("div", "empty", emptyMsg));
+  files.forEach((t, i) => col.appendChild(fileCard(t, i === 0)));
+  return col;
+}
 
-    const title = document.createElement("div");
-    title.className = "tf-title";
-    title.innerHTML =
-      `<span class="tf-name">${escapeHtml(t.filename)}</span>` +
-      `<span class="tf-lang">${escapeHtml((ev.issue ? t.tag + " · " : "") + (t.language || ""))}</span>` +
-      `<span class="tf-lines">${lines} lines</span>`;
+function fileCard(t, open) {
+  const wrap = el("details", "test-file");
+  wrap.open = open;
 
-    const actions = document.createElement("div");
-    actions.className = "tf-actions";
-    const copyBtn = mkBtn("COPY", () => {
-      navigator.clipboard.writeText(t.content);
-      copyBtn.textContent = "COPIED";
-      setTimeout(() => (copyBtn.textContent = "COPY"), 1200);
-    });
-    const dlBtn = mkBtn("DOWNLOAD", () =>
-      downloadFile(t.filename.split("/").pop(), t.content)
-    );
-    actions.appendChild(copyBtn);
-    actions.appendChild(dlBtn);
+  const lines = t.content.split("\n").length;
+  const title = el("div", "tf-title");
+  title.append(
+    el("span", "tf-name", t.filename),
+    el("span", "tf-lang", t.language || ""),
+    el("span", "tf-lines", t.diff ? `PR diff :: file is ${lines} lines` : `${lines} lines`)
+  );
 
-    head.appendChild(title);
-    head.appendChild(actions);
-
-    const pre = document.createElement("pre");
-    pre.textContent = t.content;
-
-    wrap.appendChild(head);
-    wrap.appendChild(pre);
-    box.appendChild(wrap);
+  const actions = el("div", "tf-actions");
+  const copyBtn = mkBtn("COPY", () => {
+    navigator.clipboard.writeText(t.content);
+    copyBtn.textContent = "COPIED";
+    setTimeout(() => (copyBtn.textContent = "COPY"), 1200);
   });
+  const dlBtn = mkBtn("DOWNLOAD", () =>
+    downloadFile(t.filename.split("/").pop(), t.content)
+  );
+  actions.append(copyBtn, dlBtn);
+
+  const head = document.createElement("summary");
+  head.append(title, actions);
+  // a human test file can be thousands of lines; the PR diff is what the maintainer wrote
+  wrap.append(head, t.diff ? diffPre(t.diff) : el("pre", "", t.content));
+  return wrap;
+}
+
+function diffPre(diff) {
+  const pre = el("pre", "diff");
+  for (const line of diff.split("\n"))
+    pre.appendChild(el("span", { "+": "add", "-": "del", "@": "hunk" }[line[0]] || "", line + "\n"));
+  return pre;
 }
 
 /* issue mode: where each suite landed in the specified/programmed/tested Venn */
+const EXIT = { 0: "PASS", 1: "FAIL", 5: "NONE", "-1": "TIMEOUT" };
+const exitLbl = (c) => (c == null ? "-" : EXIT[c] || "ERROR");
+const SUITE = { llm: "LLM", human: "HUMAN (PR)" };
+const GOOD = ["caught the bug", "fails at base (as it should)"]; // mirrors issues.py
+// closed-issue regions in grid order: [exit at buggy, exit at fixed, name, meaning]
+const REGIONS = [
+  [1, 0, "caught the bug", "reproduces the issue, the fix resolves it"],
+  [1, 1, "fails at both", "wrong API or wrong behaviour"],
+  [0, 0, "redundant", "never touched the bug"],
+  [0, 1, "contradicts the fix", "tests the old behaviour"],
+];
+
 function verdictBlock(ev) {
   const iss = ev.issue;
-  const lbl = (c) =>
-    c == null ? "-" : ({ 0: "PASS", 1: "FAIL", 5: "NONE", "-1": "TIME" }[c] || "NORUN");
-  let s = `ISSUE #${iss.number} [${iss.state}]  ${iss.title}\n`;
-  if (iss.pr)
-    s += `fixed by PR #${iss.pr}   buggy=${iss.base.slice(0, 10)}   fixed=${iss.head.slice(0, 10)}\n`;
-  s += `\n${"".padEnd(14)}${"base".padEnd(8)}${"head".padEnd(8)}region\n`;
   const v = ev.verdicts || {};
-  for (const k of Object.keys(v))
-    s += `${(k + " tests").padEnd(14)}${lbl(v[k].base).padEnd(8)}${lbl(v[k].head).padEnd(8)}${v[k].region}\n`;
-  if (!Object.keys(v).length) s += "(nothing was run)\n";
-  const pre = document.createElement("pre");
-  pre.className = "verdict";
-  pre.textContent = s + "\n";
-  pre.appendChild(ghLink(iss.url, "[ open issue ]"));
-  if (iss.pr) {
-    pre.append("  ");
-    pre.appendChild(ghLink(`https://github.com/${ev.repo}/pull/${iss.pr}`, `[ fix PR #${iss.pr} ]`));
+  const ran = Object.keys(v);
+  const box = el("div", "verdict");
+  box.appendChild(el("div", "v-title", `ISSUE #${iss.number} [${iss.state}]  ${iss.title}`));
+  if (iss.pr)
+    box.appendChild(el("div", "v-sub",
+      `fixed by PR #${iss.pr}  ::  buggy ${iss.base.slice(0, 10)}  ->  fixed ${iss.head.slice(0, 10)}`));
+
+  if (!ran.length) box.appendChild(el("div", "empty", "(nothing was run)"));
+  else {
+    const table = el("table", "v-table");
+    table.createTHead().insertRow().append(
+      ...["SUITE", "AT BUGGY", "AT FIXED", "REGION"].map((s) => el("th", "", s)));
+    for (const k of ran) {
+      const tr = table.insertRow();
+      for (const s of [SUITE[k] || k, exitLbl(v[k].base), exitLbl(v[k].head), v[k].region])
+        tr.insertCell().textContent = s;
+      if (GOOD.includes(v[k].region)) tr.className = "good";
+    }
+    box.appendChild(table);
+    if (iss.pr) box.appendChild(matrix(v));
   }
-  return pre;
+
+  for (const k of ran) {
+    const r = v[k];
+    let s = `--- at buggy commit: exit ${r.base} (${exitLbl(r.base)}) ---\n${r.base_out.trim()}\n`;
+    if (r.head != null)
+      s += `\n--- at fixed commit: exit ${r.head} (${exitLbl(r.head)}) ---\n${r.head_out.trim()}\n`;
+    const d = el("details", "v-out");
+    d.append(el("summary", "", `pytest output :: ${SUITE[k] || k}`), el("pre", "", s));
+    box.appendChild(d);
+  }
+
+  const links = el("div", "v-links");
+  links.appendChild(ghLink(iss.url, "[ open issue ]"));
+  if (iss.pr)
+    links.append(" ", ghLink(`https://github.com/${ev.repo}/pull/${iss.pr}`, `[ fix PR #${iss.pr} ]`));
+  box.appendChild(links);
+  return box;
+}
+
+// 2x2 outcome grid: rows = result at the buggy commit, columns = at the fixed commit
+function matrix(v) {
+  const grid = el("div", "v-matrix");
+  grid.append(el("div"), el("div", "mx-col", "FIXED: PASS"), el("div", "mx-col", "FIXED: FAIL"));
+  REGIONS.forEach(([b, h, name, meaning], i) => {
+    if (i % 2 === 0) grid.appendChild(el("div", "mx-row", b ? "BUGGY: FAIL" : "BUGGY: PASS"));
+    const who = Object.keys(v).filter((k) => v[k].base === b && v[k].head === h);
+    const cell = el("div", "mx-cell" + (i === 0 ? " target" : "") + (who.length ? " hit" : ""));
+    cell.append(el("div", "mx-name", name), el("div", "mx-meaning", meaning));
+    for (const k of who) cell.appendChild(el("span", "badge", SUITE[k] || k));
+    grid.appendChild(cell);
+  });
+  return grid;
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
 }
 
 function ghLink(href, text) {

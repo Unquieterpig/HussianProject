@@ -7,9 +7,23 @@ sees this interface, so nothing else has to change.
 
 from __future__ import annotations
 
+import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import AsyncIterator, List, Optional
+
+HTTP_HINTS = {401: " Check the API key in .env.",
+              402: " The account is out of credit: top it up or pick another provider."}
+
+
+def http_error(label: str, status: int, body: str) -> RuntimeError:
+    """A provider failure as one readable line: the API's own error message
+    (OpenAI-compatible and Anthropic both send {"error": {"message": ...}})."""
+    try:
+        msg = json.loads(body)["error"]["message"]
+    except (ValueError, KeyError, TypeError):
+        msg = body[:600]
+    return RuntimeError(f"{label} returned HTTP {status}: {msg}.{HTTP_HINTS.get(status, '')}")
 
 
 @dataclass

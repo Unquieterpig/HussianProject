@@ -382,7 +382,8 @@ input.invalid {
 .log .ok   { color: var(--fg); }
 .log .ok .tag { color: var(--accent); }
 .log .warn { color: var(--warn); }
-.log .err  {
+/* only the message is inverted; the row's timestamp and tag stay legible */
+.log span.err  {
   color: #000;
   background: var(--accent);
   padding: 0 3px;
@@ -421,16 +422,93 @@ input.invalid {
 .results { padding: 12px; display: flex; flex-direction: column; gap: 12px; }
 .results .empty { color: var(--fg-faint); padding: 10px; }
 .results .verdict {
-  margin: 0;
-  padding: 10px;
+  padding: 12px;
   border: 1px dashed var(--line-bright);
-  color: var(--fg);
   font-size: 12px;
-  white-space: pre;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   overflow-x: auto;
 }
 .results .verdict a { color: var(--accent); text-decoration: none; }
 .results .verdict a:hover { text-decoration: underline; }
+.v-title { color: var(--accent); }
+.v-sub { color: var(--fg-dim); margin-top: -8px; }
+
+.v-table { border-collapse: collapse; width: 100%; max-width: 760px; }
+.v-table th, .v-table td {
+  text-align: left;
+  padding: 4px 16px 4px 0;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.v-table th { color: var(--fg-dim); font-weight: normal; font-size: 10px; letter-spacing: 1px; }
+.v-table tr.good td { color: var(--accent); font-weight: bold; }
+.v-table tr.good td:last-child::after { content: "  <<"; }
+
+/* 2x2 outcome grid: the cell(s) a suite landed in are lit */
+.v-matrix {
+  display: grid;
+  grid-template-columns: max-content 1fr 1fr;
+  gap: 6px;
+  max-width: 760px;
+}
+.mx-col, .mx-row { color: var(--fg-dim); font-size: 10px; letter-spacing: 1px; }
+.mx-col { align-self: end; }
+.mx-row { align-self: center; padding-right: 6px; }
+.mx-cell {
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  min-height: 66px;
+  color: var(--fg-faint);
+}
+.mx-cell.target { border-style: dashed; border-color: var(--line-bright); }
+.mx-cell.target .mx-name::after { content: "  <- goal"; color: var(--fg-dim); text-transform: none; }
+.mx-cell.hit { border: 1px solid var(--accent); background: #111; color: var(--fg); }
+.mx-name { text-transform: uppercase; letter-spacing: 1px; }
+.mx-cell.hit .mx-name { color: var(--accent); }
+.mx-meaning { font-size: 11px; margin: 2px 0 6px; }
+.badge {
+  display: inline-block;
+  background: var(--accent);
+  color: #000;
+  padding: 0 6px;
+  margin-right: 6px;
+  font-size: 11px;
+}
+
+.v-out summary { cursor: pointer; color: var(--fg-dim); list-style: none; }
+.v-out summary::-webkit-details-marker { display: none; }
+.v-out summary::before { content: "[+] "; color: var(--accent); }
+.v-out[open] summary::before { content: "[-] "; }
+.v-out summary:hover { color: var(--fg); }
+.v-out pre {
+  margin: 6px 0 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  max-height: 260px;
+  overflow: auto;
+  color: var(--fg-dim);
+  font-size: 11px;
+  white-space: pre;
+}
+
+/* issue mode: LLM tests and the fix PR's tests side by side */
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+.compare-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.compare-head {
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 1px;
+  border-bottom: 1px solid var(--line-bright);
+  padding-bottom: 4px;
+}
+@media (max-width: 900px) { .compare { grid-template-columns: 1fr; } }
+
+.test-file pre.diff { color: var(--fg-faint); }
+.diff .add { color: var(--accent); }
+.diff .del { color: var(--fg-dim); text-decoration: line-through; }
+.diff .hunk { color: var(--fg-dim); }
 
 .test-file { border: 1px solid var(--line); }
 .test-file > summary {
